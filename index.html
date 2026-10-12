@@ -1,0 +1,780 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ホルモン軸シミュレーター</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column on phones — axis chips, vertical feedback chain with a vertical "負のフィードバック" rail, then the result card; two columns on wide screens. */
+:root{
+  --bg:#EEF2F0; --surface:#FFFFFF; --ink:#18221F; --muted:#56635F; --line:#C6D0CC;
+  --accent:#2C5E52; --accent-soft:#DCE9E4; --hi:#B5412C; --hi-soft:#F6E1DB; --lo:#1F5E9E; --lo-soft:#DCE8F5; --flat:#7C8A86;
+  --skin:#E6EDEA; --org:#D6DFDB; --orgline:#B2C0BB;
+  --c0:#13867A; --c1:#C27C0E; --c2:#7048B5; --c3:#C23D6E;
+  --f-disp:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111816; --surface:#19221F; --ink:#E4ECE9; --muted:#9AA9A4; --line:#2E3B37;
+  --accent:#86C2AE; --accent-soft:#1F332C; --hi:#F29178; --hi-soft:#3A2420; --lo:#86B8EE; --lo-soft:#1C2A3B; --flat:#8A9894;
+  --skin:#1F2926; --org:#2A3632; --orgline:#43534E; --c0:#4FC9B8; --c1:#E9A93B; --c2:#A88BEA; --c3:#EE7FA4; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111816; --surface:#19221F; --ink:#E4ECE9; --muted:#9AA9A4; --line:#2E3B37;
+  --accent:#86C2AE; --accent-soft:#1F332C; --hi:#F29178; --hi-soft:#3A2420; --lo:#86B8EE; --lo-soft:#1C2A3B; --flat:#8A9894;
+  --skin:#1F2926; --org:#2A3632; --orgline:#43534E; --c0:#4FC9B8; --c1:#E9A93B; --c2:#A88BEA; --c3:#EE7FA4; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.7}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:18px 48px}
+header h1{font-family:var(--f-disp);font-weight:800;font-size:1.65rem;line-height:1.3;margin:0;text-wrap:balance;letter-spacing:.02em}
+header .sub{color:var(--muted);margin:.3rem 0 1rem;font-size:.9rem}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px;margin-bottom:16px}
+.tabs button{flex:1;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;padding:.5rem .4rem;border-radius:7px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--surface)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;scrollbar-width:thin}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:.86rem;padding:.3rem .75rem;border-radius:999px;cursor:pointer;white-space:nowrap}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+.grid{display:grid;gap:18px}
+@media (min-width:880px){.grid{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);align-items:start}}
+.loop{font-size:.85rem;color:var(--muted);margin:0 0 10px}
+.chain{position:relative;padding-left:34px}
+.rail{position:absolute;left:6px;top:26px;bottom:26px;width:20px;border:2px dashed var(--line);border-right:0;border-radius:10px 0 0 10px}
+.rail span{position:absolute;left:-12px;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;font-size:.7rem;letter-spacing:.2em;color:var(--muted);background:var(--bg);padding:6px 0}
+.rail::before{content:"";position:absolute;right:-6px;top:-5px;border:5px solid transparent;border-left-color:var(--line)}
+.node{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.node[disabled]{cursor:default}
+.node.lesion{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.st{flex:none;width:44px;height:44px;display:grid;place-items:center;border-radius:8px;font-family:var(--f-mono);font-size:1.5rem;font-weight:500}
+.st-u{background:var(--hi-soft);color:var(--hi)} .st-d{background:var(--lo-soft);color:var(--lo)} .st-n{background:var(--bg);color:var(--flat)}
+.nbody{flex:1;min-width:0;display:flex;flex-direction:column}
+.organ{font-size:.75rem;color:var(--muted);letter-spacing:.04em}
+.hormone{font-weight:700;font-size:1.02rem;line-height:1.35}
+.nnote{font-size:.78rem;color:var(--muted);line-height:1.4;margin-top:2px}
+.ntag{flex:none;font-size:.7rem;font-weight:700;padding:.1rem .45rem;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.lesion .ntag{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.edge{font-size:.74rem;color:var(--muted);padding:4px 0 4px 56px;display:flex;align-items:center;gap:6px}
+.edge b{font-family:var(--f-mono);font-weight:500;color:var(--ink)}
+.menu{display:flex;flex-direction:column;gap:6px;padding:8px 0 4px 20px}
+.opt{display:flex;gap:8px;align-items:center;text-align:left;font:inherit;font-size:.9rem;background:var(--surface);color:var(--ink);border:1px dashed var(--line);border-radius:8px;padding:.45rem .7rem;cursor:pointer}
+.opt[aria-pressed="true"]{border-style:solid;border-color:var(--accent);background:var(--accent-soft)}
+.opt .g{font-family:var(--f-mono);width:1.2em}
+.g-u{color:var(--hi)} .g-d{color:var(--lo)}
+.ext{margin-top:14px}
+.ext h3,.sec-h{font-size:.75rem;letter-spacing:.12em;color:var(--muted);margin:0 0 6px;font-weight:700}
+.ext .chips{flex-wrap:wrap;overflow:visible}
+.reset{margin-top:10px;font:inherit;font-size:.82rem;color:var(--muted);background:none;border:0;text-decoration:underline;cursor:pointer;padding:0}
+.result{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 18px 14px;min-width:0}
+.lv{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.06em;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 .45rem}
+.result h2{font-family:var(--f-disp);font-weight:800;font-size:1.4rem;line-height:1.35;margin:.4rem 0 .6rem;text-wrap:balance}
+.read{background:var(--accent-soft);border-radius:8px;padding:.55rem .75rem;font-weight:500;font-size:.93rem;margin-bottom:12px}
+.read .k{display:block;font-size:.7rem;letter-spacing:.12em;color:var(--accent);font-weight:700}
+.labs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.pill{font-size:.8rem;border:1px solid var(--line);border-radius:6px;padding:.1rem .5rem;font-variant-numeric:tabular-nums}
+.pill .g{font-family:var(--f-mono);margin-left:4px}
+.result dl{margin:0;display:grid;gap:10px}
+.result dt{font-size:.72rem;letter-spacing:.12em;color:var(--muted);font-weight:700}
+.result dd{margin:0}
+.result ul{margin:0;padding-left:1.1em}
+.result li{margin:.1rem 0}
+.pearl{border-left:3px solid var(--hi);padding-left:.7rem}
+.jump{margin-top:12px;font:inherit;font-size:.85rem;font-weight:700;color:var(--accent);background:none;border:1px solid var(--accent);border-radius:8px;padding:.35rem .8rem;cursor:pointer}
+.empty{color:var(--muted)}
+.rule{font-size:.82rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:14px}
+.rule b{color:var(--ink)}
+/* body figure */
+.figwrap{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 4px;margin-bottom:8px}
+svg.body{width:100%;height:auto;display:block;max-height:72vh}
+.sil{fill:var(--skin);stroke:var(--orgline);stroke-width:1.2}
+.org{fill:var(--org);stroke:var(--orgline);stroke-width:1;opacity:.6;transition:fill .5s,stroke .5s,opacity .5s}
+.org.on{opacity:1;stroke-width:1.6}
+.org.on.s-u{fill:var(--hi-soft);stroke:var(--hi);animation:glow 1.5s ease-in-out infinite}
+.org.on.s-d{fill:var(--lo-soft);stroke:var(--lo);stroke-dasharray:3 2}
+.org.on.s-n{fill:var(--accent-soft);stroke:var(--accent)}
+@keyframes glow{50%{stroke-width:3.4}}
+.aorta{fill:none;stroke:var(--orgline);stroke-width:3;opacity:.5}
+.trk{fill:none;stroke:var(--orgline);stroke-width:1.3}
+.trk.fb{stroke-dasharray:4 4}
+.lbl{font-family:var(--f-body);font-size:13px;font-weight:700;fill:var(--ink)}
+.lbl .gu{fill:var(--hi)} .lbl .gd{fill:var(--lo)} .lbl .gn{fill:var(--flat)}
+.lead{stroke:var(--orgline);stroke-width:.8}
+.fbl{font-size:9.5px;fill:var(--muted);font-family:var(--f-body)}
+.lring{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-dasharray:4 3;transform-box:fill-box;transform-origin:center;animation:spin 7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hit{fill:transparent;cursor:pointer}
+.hit:focus-visible{outline:none;stroke:var(--accent);stroke-width:2}
+.pill-i{fill:var(--surface);stroke:var(--ink);stroke-width:1.2}
+.tumor-i{fill:var(--hi-soft);stroke:var(--hi);stroke-width:1.4}
+.exl{font-size:10px;fill:var(--ink);font-weight:700;font-family:var(--f-body)}
+.hint{font-size:.78rem;color:var(--muted);margin:0 0 10px;line-height:1.55}
+.gauges{display:flex;flex-direction:column;gap:6px}
+.gauge{display:grid;grid-template-columns:10px minmax(0,1fr) 92px 28px;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer}
+.gauge[disabled]{cursor:default}
+.gauge.lesion{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.gdot{width:10px;height:10px;border-radius:50%}
+.gname{display:flex;flex-direction:column;min-width:0;line-height:1.3}
+.gname small{font-size:.72rem;color:var(--muted)}
+.gname em{font-style:normal;font-size:.72rem;color:var(--muted)}
+.meter{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg,var(--lo-soft) 0 33%,var(--bg) 33% 67%,var(--hi-soft) 67% 100%);border:1px solid var(--line)}
+.mk{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;border:2px solid var(--surface);transition:left .9s cubic-bezier(.3,1.4,.5,1)}
+.mk.s-u{background:var(--hi)} .mk.s-d{background:var(--lo)} .mk.s-n{background:var(--flat)}
+.gst{font-family:var(--f-mono);font-size:1.3rem;text-align:center}
+.gst.s-u{color:var(--hi)} .gst.s-d{color:var(--lo)} .gst.s-n{color:var(--flat)}
+@media (prefers-reduced-motion:reduce){.org.on.s-u,.lring{animation:none}.mk{transition:none}}
+/* tubule */
+.neph{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
+.neph svg{width:100%;height:auto;display:block}
+.seg{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke:var(--line);stroke-width:11;cursor:pointer;transition:stroke .2s}
+.seg.on{stroke:var(--accent)}
+.seg:hover{stroke:var(--flat)} .seg.on:hover{stroke:var(--accent)}
+.thin{fill:none;stroke:var(--line);stroke-width:4;stroke-linecap:round}
+.svgt{fill:var(--muted);font-size:11px;font-family:var(--f-body)}
+.svgt.on{fill:var(--accent);font-weight:700}
+.zone{stroke:var(--line);stroke-dasharray:3 4}
+.glom{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5}
+.seginfo{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.seginfo h2{font-family:var(--f-disp);font-weight:800;font-size:1.25rem;margin:0}
+.seginfo .share{font-size:.8rem;color:var(--muted);font-family:var(--f-mono)}
+.seginfo ul{margin:.3rem 0 .6rem;padding-left:1.1em;font-size:.9rem}
+.tlab{width:100%;border-collapse:collapse;font-size:.86rem;margin:4px 0 12px}
+.tlab td{border-bottom:1px solid var(--line);padding:.3rem .2rem}
+.tlab td:last-child{text-align:right;font-family:var(--f-mono)}
+.tv-u{color:var(--hi)} .tv-d{color:var(--lo)} .tv-n,.tv-x{color:var(--flat)} .tv-A{color:var(--lo)} .tv-L{color:var(--hi)}
+.cmpwrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-top:12px}
+.cmp{border-collapse:collapse;font-size:.8rem;min-width:640px;width:100%}
+.cmp th,.cmp td{padding:.35rem .4rem;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.cmp th:first-child,.cmp td:first-child{text-align:left;position:sticky;left:0;background:var(--surface)}
+.cmp thead th{font-weight:700;font-size:.74rem}
+.cmp td{font-family:var(--f-mono)}
+/* quiz */
+.qopts{display:grid;gap:8px;margin-top:12px}
+.qopt{font:inherit;text-align:left;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;cursor:pointer}
+.qopt.ok{border-color:var(--accent);background:var(--accent-soft)}
+.qopt.ng{border-color:var(--hi);background:var(--hi-soft)}
+.qscore{font-family:var(--f-mono);font-size:.85rem;color:var(--muted)}
+.next{margin-top:12px;font:inherit;font-weight:700;background:var(--accent);color:var(--surface);border:0;border-radius:8px;padding:.5rem 1rem;cursor:pointer}
+@keyframes pop{0%{transform:scale(.6);opacity:.2}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+.fresh .st{animation:pop .42s ease-out both}
+@media (prefers-reduced-motion:reduce){.fresh .st{animation:none}}
+</style>
+<style>:root{color-scheme:light}body{margin:0}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark}}</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ホルモン軸シミュレーター</h1>
+    <p class="sub">臓器をタップして病変を入れると、上流と下流のホルモンがどう動き、どの病名になるかが出ます。</p>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="axis" id="tab-axis">ホルモン軸</button>
+      <button role="tab" data-tab="tub" id="tab-tub">尿細管</button>
+      <button role="tab" data-tab="quiz" id="tab-quiz">逆引き</button>
+    </nav>
+  </header>
+  <main id="view"></main>
+</div>
+
+<script>
+const AX=[
+{id:'hpa',name:'副腎皮質',loop:'コルチゾールがCRH・ACTHを抑制する負のフィードバック。',
+ nodes:[{id:'h',organ:'視床下部',hormone:'CRH'},{id:'p',organ:'下垂体前葉',hormone:'ACTH'},{id:'g',organ:'副腎皮質（束状層）',hormone:'コルチゾール'}],
+ edges:[['刺激','CRH → ACTH分泌'],['刺激','ACTH → コルチゾール合成']],
+ scen:[
+ {id:'hpa-adr',at:'g',dir:'u',btn:'腺腫が自律分泌',name:'Cushing症候群（副腎腺腫）',level:'原発性（副腎性）',st:{h:'d',p:'d',g:'u'},labs:[['ACTH','d'],['1mg DST','抑制されない'],['K','d']],
+  read:'ACTH↓なのにコルチゾール↑。指令が止まっているのに出続けている＝副腎が勝手に作っている。',
+  mech:'副腎腺腫がACTH非依存性にコルチゾールを分泌し、負のフィードバックでCRHとACTHが抑制される。対側副腎はACTH欠乏で萎縮する。',
+  sx:['満月様顔貌・中心性肥満・野牛肩','赤色皮膚線条・皮膚菲薄化・易出血','高血圧・耐糖能異常・脂質異常','骨粗鬆症・近位筋萎縮','易感染・精神症状'],
+  dx:['1mg デキサメタゾン抑制試験（DST）で抑制されない','深夜の血中・唾液コルチゾール高値','血中ACTH低値','副腎CTで腫瘍、アドステロールシンチで患側集積・対側抑制'],
+  tx:'腹腔鏡下副腎摘除。術後は対側萎縮のためステロイド補充が必要。',pearl:'ACTHが低いので色素沈着はない。術後の副腎不全を見越して補充する。'},
+ {id:'hpa-dis',at:'p',dir:'u',btn:'ACTH産生腺腫',name:'Cushing病',level:'続発性（下垂体性）',st:{h:'d',p:'u',g:'u'},labs:[['ACTH','u'],['8mg DST','抑制される']],
+  read:'ACTH↑とコルチゾール↑が同じ向き。指令役から上流が原因。',
+  mech:'下垂体腺腫がACTHを過剰分泌する。腺腫はフィードバックに部分的に反応するため、高用量デキサメタゾンでは抑制される。',
+  sx:['Cushing徴候一式','軽度の色素沈着（ACTH↑）','女性に多い'],
+  dx:['ACTH正常〜高値','8mg DSTで抑制される','CRH試験でACTHが反応する','下垂体MRI（微小腺腫が多く写らないこともある）、海綿静脈洞・下錐体静脈洞サンプリング'],
+  tx:'経蝶形骨洞手術。',pearl:'高用量DSTで抑制、CRH試験で反応 → 下垂体性。異所性ACTHはどちらも反応しない。'},
+ {id:'hpa-add',at:'g',dir:'d',btn:'副腎の破壊',name:'Addison病（原発性副腎不全）',level:'原発性（副腎性）',st:{h:'u',p:'u',g:'d'},note:{g:'コルチゾール↓・アルドステロン↓'},labs:[['Na','d'],['K','u'],['好酸球','u'],['血糖','d']],
+  read:'ACTH↑なのにコルチゾール↓。指令は全開なのに副腎が応えられない。',
+  mech:'自己免疫性副腎炎や結核で副腎皮質が全層性に破壊される。球状層も障害されるためアルドステロンも低下する。',
+  sx:['倦怠感・体重減少・食欲低下','皮膚・口腔粘膜の色素沈着（POMC由来のMSH作用）','低血圧・低血糖','女性の腋毛・恥毛脱落（副腎アンドロゲン↓）'],
+  dx:['迅速ACTH試験で無反応','ACTH高値','低Na・高K・好酸球増多'],
+  tx:'ヒドロコルチゾン＋フルドロコルチゾン。シックデイは増量。',pearl:'色素沈着＋高K → 原発性。副腎クリーゼはヒドロコルチゾン静注と生理食塩水。',link:{axis:'raa',scen:'raa-add'}},
+ {id:'hpa-sec',at:'p',dir:'d',btn:'下垂体機能低下',name:'続発性副腎不全',level:'続発性（下垂体性）',st:{h:'u',p:'d',g:'d'},note:{g:'コルチゾール↓（アルドステロンは保たれる）'},labs:[['Na','d'],['K','n'],['血糖','d']],
+  read:'ACTH↓とコルチゾール↓が同じ向き。指令役（下垂体）が原因。',
+  mech:'下垂体腫瘍、Sheehan症候群、リンパ球性下垂体炎、免疫チェックポイント阻害薬などでACTHが低下する。アルドステロンはRAA系で維持される。',
+  sx:['倦怠感・低血糖・低Na','色素沈着なし（むしろ蒼白）','高Kは来さない'],
+  dx:['ACTH低値〜正常','CRH試験でACTHが反応しない','他の前葉ホルモンも評価'],
+  tx:'ヒドロコルチゾン（鉱質コルチコイド補充は通常不要）。',pearl:'甲状腺ホルモン補充はステロイドの後。先に始めると代謝亢進でクリーゼを誘発する。'},
+ {id:'hpa-ter',at:'h',dir:'d',btn:'CRH分泌低下',name:'三次性副腎不全（視床下部性）',level:'三次性（視床下部性）',st:{h:'d',p:'d',g:'d'},labs:[['CRH試験','ACTH遅延反応']],
+  read:'ACTH↓コルチゾール↓だが、CRHを入れるとACTHが（遅れて）出る＝下垂体は生きている。',
+  mech:'頭蓋咽頭腫など視床下部病変、または長期ステロイドによるCRH抑制。',
+  sx:['続発性と同様（色素沈着なし・高Kなし）'],dx:['CRH試験でACTHが遅延・過大反応'],
+  tx:'ヒドロコルチゾン。',pearl:'副腎不全の原因として臨床で最も多いのは外因性ステロイドの中止。'},
+ {id:'hpa-ect',at:'ext',dir:'u',btn:'異所性ACTH',name:'異所性ACTH症候群',level:'異所性',st:{h:'d',p:'u',g:'u'},note:{p:'血中ACTH著増（腫瘍由来）。下垂体自体は抑制'},labs:[['ACTH','u'],['K','d'],['8mg DST','抑制されない']],
+  read:'ACTHが桁違いに高く、高用量DSTでも下がらない → 下垂体以外の腫瘍。',
+  mech:'肺小細胞癌やカルチノイドがACTHを産生し、フィードバックを受けない。',
+  sx:['急速進行で典型的Cushing徴候が揃わないことも','著明な低K・代謝性アルカローシス・高血圧・浮腫','強い色素沈着'],
+  dx:['ACTH著高値','8mg DSTで抑制されない・CRH試験で反応しない','下錐体静脈洞サンプリングで中枢/末梢比が低い','全身CTで原発巣検索'],
+  tx:'原発巣切除。困難ならメチラポンなどのステロイド合成阻害薬。',pearl:'低Kが目立つのは、大量のコルチゾールが11β-HSD2の処理能を超えてMR（鉱質コルチコイド受容体）を刺激するため。'},
+ {id:'hpa-exo',at:'ext',dir:'u',btn:'ステロイド長期投与',name:'医原性Cushing症候群',level:'外因性',st:{h:'d',p:'d',g:'d'},note:{g:'内因性↓（萎縮）。投与分で総糖質コルチコイドは↑'},labs:[['ACTH','d']],
+  read:'Cushing徴候があるのにACTHも内因性コルチゾールも低い → 外から入っている。',
+  mech:'長期の糖質コルチコイド投与でCRHとACTHが抑制され、副腎が萎縮する。',
+  sx:['Cushing徴候','急な中止で副腎不全（ショック・低血糖）'],dx:['投与歴の確認','ACTH低値'],
+  tx:'漸減中止。手術・感染時はストレス量に増量。',pearl:'HPA軸の回復には数か月〜1年かかることがある。'}
+ ]},
+{id:'thy',name:'甲状腺',loop:'FT4/FT3がTRH・TSHを抑制。TSHは原発性の機能異常を最も鋭敏に反映する。',
+ nodes:[{id:'h',organ:'視床下部',hormone:'TRH'},{id:'p',organ:'下垂体前葉',hormone:'TSH'},{id:'g',organ:'甲状腺',hormone:'FT4 / FT3'}],
+ edges:[['刺激','TRH → TSH分泌'],['刺激','TSH → 甲状腺ホルモン合成']],
+ scen:[
+ {id:'thy-gd',at:'g',dir:'u',btn:'TSH受容体抗体で刺激',name:'Basedow病',level:'原発性（甲状腺性）',st:{h:'d',p:'d',g:'u'},labs:[['TRAb','陽性'],['摂取率','u'],['総コレステロール','d'],['ALP','u']],
+  read:'TSH↓なのにFT4↑。TSHの代わりに抗体が甲状腺を押している。',
+  mech:'TSH受容体刺激抗体（TRAb/TSAb）が甲状腺を持続的に刺激し、TSHはフィードバックで抑制される。',
+  sx:['びまん性甲状腺腫','眼球突出・眼瞼後退（Basedow眼症）','頻脈・心房細動','体重減少・発汗・手指振戦','前脛骨粘液水腫','低K性周期性四肢麻痺（アジア人男性）'],
+  dx:['TSH低値・FT4高値','TRAb陽性','123I（または99mTc）摂取率高値・びまん性集積'],
+  tx:'抗甲状腺薬（チアマゾール第一選択、妊娠初期はプロピルチオウラシル）、131I内用療法、手術。',pearl:'摂取率↑＝産生↑（Basedow）。摂取率↓＝漏出か外因（破壊性甲状腺炎・外因性）。'},
+ {id:'thy-pt',at:'g',dir:'u',btn:'濾胞の破壊で漏出',name:'無痛性甲状腺炎（破壊性）',level:'原発性（甲状腺性）',st:{h:'d',p:'d',g:'u'},note:{g:'貯蔵分の漏出（産生は↓）'},labs:[['TRAb','陰性'],['摂取率','d'],['サイログロブリン','u']],
+  read:'TSH↓FT4↑だが摂取率↓。作っているのではなく漏れている。',
+  mech:'濾胞が破壊され貯蔵ホルモンが血中に漏出する。一過性で、その後に低下期を経ることがある。',
+  sx:['一過性の甲状腺中毒症','疼痛なし（亜急性甲状腺炎は有痛・発熱・ESR↑）','産後に多い'],
+  dx:['TRAb陰性','摂取率低値','サイログロブリン高値'],
+  tx:'対症療法（β遮断薬）。抗甲状腺薬は無効。',pearl:'産後数か月の甲状腺中毒症は、まず無痛性甲状腺炎を考える。'},
+ {id:'thy-hash',at:'g',dir:'d',btn:'自己免疫で破壊',name:'橋本病（原発性甲状腺機能低下症）',level:'原発性（甲状腺性）',st:{h:'u',p:'u',g:'d'},labs:[['抗TPO抗体','陽性'],['CK','u'],['LDL-C','u'],['Na','d'],['PRL','u']],
+  read:'TSH↑なのにFT4↓。指令は全開なのに甲状腺が応えられない。',
+  mech:'自己免疫性慢性甲状腺炎で濾胞が破壊・線維化する。TRH↑はPRL分泌も刺激する。',
+  sx:['寒がり・便秘・体重増加','徐脈・心嚢液','粘液水腫（圧痕を残さない浮腫）','嗄声・巨舌','嗜眠・アキレス腱反射の弛緩相遅延','月経過多'],
+  dx:['TSH高値・FT4低値','抗TPO抗体・抗サイログロブリン抗体陽性','CK↑・LDL-C↑・低Na'],
+  tx:'レボチロキシンを少量から漸増（高齢者・冠動脈疾患では特に慎重に）。',pearl:'FT4正常でTSHだけ高い＝潜在性甲状腺機能低下症。',link:{axis:'prl',scen:'prl-thy'}},
+ {id:'thy-tsho',at:'p',dir:'u',btn:'TSH産生腺腫',name:'TSH産生下垂体腫瘍',level:'続発性（下垂体性）',st:{h:'d',p:'u',g:'u'},note:{p:'FT4↑でも抑制されない'},labs:[['α-サブユニット','u']],
+  read:'FT4↑なのにTSHが下がらない（SITSH）。指令役がフィードバックを無視している。',
+  mech:'腫瘍がTSHを自律的に分泌し、フィードバックがかからない。',
+  sx:['甲状腺中毒症状','甲状腺腫','頭痛・視野障害（大きい腺腫）'],
+  dx:['FT4高値＋TSH正常〜高値（SITSH）','α-サブユニット高値','TRH試験で無〜低反応','下垂体MRI'],
+  tx:'経蝶形骨洞手術、ソマトスタチンアナログ。',pearl:'SITSHの鑑別は甲状腺ホルモン不応症（α-サブユニット正常・家族歴あり）。'},
+ {id:'thy-sec',at:'p',dir:'d',btn:'下垂体機能低下',name:'中枢性甲状腺機能低下症',level:'続発性（下垂体性）',st:{h:'u',p:'d',g:'d'},note:{p:'低値〜正常'},labs:[],
+  read:'TSHが低い（または正常）のにFT4↓。指令役が原因。',
+  mech:'下垂体腫瘍やSheehan症候群でTSH分泌が低下する。',
+  sx:['機能低下症状（甲状腺腫なし）','他の前葉ホルモン欠落症状'],dx:['TSH低値〜正常＋FT4低値','TRH試験で無反応'],
+  tx:'副腎不全を除外・補充してからレボチロキシン。用量調節はFT4で行う。',pearl:'TSHだけでスクリーニングすると見逃す。'},
+ {id:'thy-exo',at:'ext',dir:'u',btn:'甲状腺ホルモン過量摂取',name:'外因性甲状腺中毒症',level:'外因性',st:{h:'d',p:'d',g:'u'},note:{g:'FT4は外因性。甲状腺自体は休止'},labs:[['摂取率','d'],['サイログロブリン','d']],
+  read:'TSH↓FT4↑・摂取率↓・サイログロブリン↓ → 外から入っている。',
+  mech:'甲状腺ホルモン製剤の過量・意図的摂取。',sx:['甲状腺中毒症状','甲状腺腫なし'],dx:['サイログロブリン低値','摂取率低値'],
+  tx:'中止。',pearl:'摂取率↓の鑑別は Tg：破壊性は↑、外因性は↓。'}
+ ]},
+{id:'gh',name:'成長ホルモン',loop:'IGF-1がGHRHを抑制しソマトスタチンを刺激する。高血糖もGHを抑制する。',
+ nodes:[{id:'h',organ:'視床下部',hormone:'GHRH（↔ソマトスタチン）'},{id:'p',organ:'下垂体前葉',hormone:'GH'},{id:'g',organ:'肝臓',hormone:'IGF-1'}],
+ edges:[['刺激','GHRH → GH分泌'],['刺激','GH → 肝でIGF-1産生']],
+ scen:[
+ {id:'gh-acro',at:'p',dir:'u',btn:'GH産生腺腫',name:'先端巨大症',level:'下垂体性',st:{h:'d',p:'u',g:'u'},note:{h:'GHRH↓・ソマトスタチン↑'},labs:[['75g OGTT','GH抑制されない'],['血糖','u']],
+  read:'GH↑とIGF-1↑が同じ向き、しかもブドウ糖負荷でGHが下がらない → 自律分泌。',
+  mech:'GH産生腺腫。骨端線閉鎖後は四肢末端と軟部組織が肥大し、閉鎖前に発症すると巨人症になる。',
+  sx:['手足の容積増大（指輪・靴が合わない）','眉弓・下顎突出、巨舌','発汗過多・睡眠時無呼吸','糖尿病・高血圧・心肥大','手根管症候群','両耳側半盲（鞍上進展）'],
+  dx:['IGF-1高値（年齢・性別基準）','75g OGTTでGHが抑制されない','TRH試験で奇異性上昇','下垂体MRI'],
+  tx:'経蝶形骨洞手術、ソマトスタチンアナログ、GH受容体拮抗薬（ペグビソマント）。',pearl:'主な死因は心血管疾患。スクリーニングはIGF-1。'},
+ {id:'gh-def',at:'p',dir:'d',btn:'GH分泌不全',name:'GH分泌不全性低身長症',level:'下垂体性',st:{h:'u',p:'d',g:'d'},labs:[['血糖','d']],
+  read:'GH↓とIGF-1↓が同じ向き → 下垂体。',
+  mech:'特発性、または頭蓋咽頭腫などの器質性病変でGHが低下する。',
+  sx:['均整のとれた低身長（−2SD以下）','成長率低下・骨年齢遅延','乳幼児期の低血糖','成人では内臓脂肪↑・筋量↓'],
+  dx:['IGF-1低値','GH分泌刺激試験2種以上で低反応（インスリン低血糖、アルギニン、L-DOPA、クロニジン、グルカゴン、GHRP-2）'],
+  tx:'GH補充。',pearl:'低身長の鑑別に甲状腺機能低下症・Turner症候群・体質性を入れる。'},
+ {id:'gh-laron',at:'g',dir:'d',btn:'GH受容体の異常',name:'Laron症候群（GH不応）',level:'受容体異常',st:{h:'u',p:'u',g:'d'},labs:[],
+  read:'GH↑なのにIGF-1↓。指令は届いているのに肝が応えない。',
+  mech:'GH受容体遺伝子異常で肝がIGF-1を作れない。後天的には低栄養・肝硬変・神経性やせ症で同じパターンになる。',
+  sx:['重度の低身長','前額突出・鞍鼻'],dx:['GH高値＋IGF-1低値','GH投与でIGF-1が上がらない'],
+  tx:'IGF-1製剤（メカセルミン）。',pearl:'神経性やせ症・低栄養でも GH↑IGF-1↓ になる。'}
+ ]},
+{id:'prl',name:'プロラクチン',loop:'PRLは主にドパミンによる「抑制」で調節される唯一の前葉ホルモン。PRL↑はGnRHを抑える。',
+ nodes:[{id:'h',organ:'視床下部（隆起漏斗系）',hormone:'ドパミン'},{id:'p',organ:'下垂体前葉',hormone:'PRL'},{id:'g',organ:'性腺軸',hormone:'GnRH → LH/FSH・性ホルモン'}],
+ edges:[['抑制','ドパミンがPRLを抑える'],['抑制','PRLがGnRHを抑える']],
+ scen:[
+ {id:'prl-oma',at:'p',dir:'u',btn:'PRL産生腺腫',name:'プロラクチノーマ',level:'下垂体性',st:{h:'u',p:'u',g:'d'},note:{h:'代償的に↑だが腺腫には効かない'},labs:[['PRL','u']],
+  read:'PRLが著増し、性腺軸が止まる（無月経・乳汁漏出）。',
+  mech:'機能性下垂体腺腫で最多。PRLがGnRHパルスを抑制し、性腺機能低下を起こす。',
+  sx:['無月経・乳汁漏出・不妊（女性）','性欲低下・ED・女性化乳房（男性、発見時マクロ腺腫が多い）','頭痛・両耳側半盲（マクロ腺腫）','骨密度低下'],
+  dx:['PRL高値','下垂体MRI','妊娠・薬剤・甲状腺機能低下を除外'],
+  tx:'ドパミン作動薬（カベルゴリン第一選択）。手術は薬剤抵抗・不耐時。',pearl:'機能性下垂体腺腫で唯一、第一選択が手術ではなく薬。'},
+ {id:'prl-drug',at:'h',dir:'d',btn:'ドパミン作用の遮断',name:'薬剤性高PRL血症',level:'視床下部性（抑制の解除）',st:{h:'d',p:'u',g:'d'},note:{h:'D2受容体遮断で作用↓'},labs:[['PRL','u']],
+  read:'ブレーキ（ドパミン）が外れてPRLが軽〜中等度に上がる。',
+  mech:'抗精神病薬（リスペリドンなど）、制吐薬（メトクロプラミド、ドンペリドン）、スルピリドがD2受容体を遮断する。下垂体茎の圧迫（stalk effect）でも同じ機序。',
+  sx:['乳汁漏出・無月経','男性の性機能低下'],dx:['服薬歴','PRL軽〜中等度高値'],
+  tx:'原因薬の中止・変更。',pearl:'大きな非機能性腺腫でPRLが軽度高い＝stalk effect。プロラクチノーマと誤認しない。'},
+ {id:'prl-thy',at:'ext',dir:'u',btn:'原発性甲状腺機能低下',name:'甲状腺機能低下症による高PRL血症',level:'他軸からの波及',st:{h:'n',p:'u',g:'d'},note:{h:'TRH↑がPRL分泌を刺激'},labs:[['TSH','u'],['FT4','d']],
+  read:'TSH↑を見たら、まず甲状腺を治せばPRLも下がる。',
+  mech:'TRHはTSHだけでなくPRL分泌も刺激する。',sx:['機能低下症状＋乳汁漏出'],dx:['TSH高値・FT4低値'],
+  tx:'レボチロキシン（PRLも正常化）。',pearl:'高PRLを見たら妊娠・薬剤・甲状腺機能低下をまず除外する。',link:{axis:'thy',scen:'thy-hash'}}
+ ]},
+{id:'gon',name:'性腺',loop:'性ステロイドがGnRH・LH/FSHを抑制（排卵前のE2は一時的に正のフィードバック）。',
+ nodes:[{id:'h',organ:'視床下部',hormone:'GnRH（パルス）'},{id:'p',organ:'下垂体前葉',hormone:'LH / FSH'},{id:'g',organ:'卵巣・精巣',hormone:'E2 / テストステロン'}],
+ edges:[['刺激','GnRH → LH/FSH'],['刺激','LH/FSH → 性ステロイド']],
+ scen:[
+ {id:'gon-turner',at:'g',dir:'d',btn:'卵巣形成不全（45,X）',name:'Turner症候群',level:'原発性（高ゴナドトロピン性）',st:{h:'u',p:'u',g:'d'},labs:[],
+  read:'LH/FSH↑なのにE2↓ → 卵巣が原因。',
+  mech:'45,Xなどで卵巣が索状性腺となり、エストロゲンを作れない。',
+  sx:['低身長','翼状頸・外反肘・盾状胸','原発性無月経・二次性徴欠如','大動脈縮窄症・大動脈二尖弁・馬蹄腎','知能は正常範囲が多い'],
+  dx:['染色体検査','LH/FSH高値・E2低値'],tx:'GH療法、エストロゲン補充。',pearl:'低身長の女児では Turner を必ず鑑別に入れる。'},
+ {id:'gon-kline',at:'g',dir:'d',btn:'精巣機能低下（47,XXY）',name:'Klinefelter症候群',level:'原発性（高ゴナドトロピン性）',st:{h:'u',p:'u',g:'d'},labs:[],
+  read:'LH/FSH↑なのにテストステロン↓ → 精巣が原因。',
+  mech:'47,XXYで精細管が硝子化し、精子形成とテストステロン産生が低下する。',
+  sx:['高身長・類宦官体型','小さく硬い精巣','女性化乳房','無精子症'],dx:['染色体検査','LH/FSH高値・テストステロン低値'],
+  tx:'テストステロン補充（精子形成は改善しない）。',pearl:'男性不妊の染色体異常で最多。乳癌リスク↑。'},
+ {id:'gon-kall',at:'h',dir:'d',btn:'GnRHニューロンの欠如',name:'Kallmann症候群',level:'視床下部性（低ゴナドトロピン性）',st:{h:'d',p:'d',g:'d'},labs:[],
+  read:'LH/FSH↓・性ホルモン↓、そして嗅覚がない → 視床下部。',
+  mech:'胎生期にGnRHニューロンが嗅板から視床下部へ遊走できない。嗅神経も同じ経路で障害される。',
+  sx:['嗅覚低下・消失','二次性徴欠如','類宦官体型'],dx:['LH/FSH低値','GnRH反復投与後にLH/FSHが反応','MRIで嗅球低形成'],
+  tx:'性ホルモン補充。挙児希望ではゴナドトロピン療法またはGnRHパルス療法。',pearl:'嗅覚障害＋性腺機能低下。'},
+ {id:'gon-an',at:'h',dir:'d',btn:'体重減少・ストレス',name:'視床下部性無月経（神経性やせ症など）',level:'視床下部性（低ゴナドトロピン性）',st:{h:'d',p:'d',g:'d'},labs:[['T3','d'],['GH','u'],['IGF-1','d']],
+  read:'LH/FSH↓・E2↓。卵巣ではなく上流の指令が止まっている。',
+  mech:'エネルギー不足やストレスでGnRHパルスが抑制される。',
+  sx:['続発性無月経','低体重・徐脈・低体温','産毛密生'],dx:['LH/FSH低値・E2低値','low T3','GH↑・IGF-1↓'],
+  tx:'体重・栄養の回復。',pearl:'骨密度低下が不可逆になりうる。'},
+ {id:'gon-cpp',at:'h',dir:'u',btn:'GnRHの早期活性化',name:'中枢性思春期早発症',level:'視床下部性',st:{h:'u',p:'u',g:'u'},labs:[['骨年齢','促進']],
+  read:'LH/FSH↑と性ホルモン↑が同じ向き → 上流（中枢）が原因。',
+  mech:'特発性（女児に多い）、視床下部過誤腫、脳腫瘍などでGnRH分泌が早く始まる。',
+  sx:['二次性徴の早期出現','一時的な高身長 → 骨端線早期閉鎖で最終身長は低い'],dx:['GnRH試験で思春期型反応','骨年齢促進','頭部MRI'],
+  tx:'GnRHアナログ（持続投与で受容体をダウンレギュレーション）。',pearl:'GnRHは「パルス」で刺激、「持続」で抑制。'},
+ {id:'gon-ppp',at:'g',dir:'u',btn:'性腺・副腎の自律分泌',name:'末梢性思春期早発症（McCune-Albright症候群など）',level:'末梢性',st:{h:'d',p:'d',g:'u'},labs:[],
+  read:'LH/FSH↓なのに性ホルモン↑ → 末梢（性腺・副腎・腫瘍）。',
+  mech:'卵巣嚢腫の自律性、副腎腫瘍・先天性副腎過形成、hCG産生腫瘍など。McCune-AlbrightはGsα活性化変異。',
+  sx:['カフェオレ斑（辺縁不整）','多骨性線維性骨異形成','思春期早発'],dx:['LH/FSH低値・GnRH試験で無反応','性ホルモン高値'],
+  tx:'原因に応じて（アロマターゼ阻害薬など）。',pearl:'GnRHアナログは無効。'},
+ {id:'gon-pcos',at:'p',dir:'u',btn:'LH優位の分泌',name:'多嚢胞性卵巣症候群（PCOS）',level:'内分泌代謝異常',st:{h:'n',p:'u',g:'u'},note:{h:'GnRHパルス頻度↑',p:'LH↑・FSH正常（LH/FSH比↑）',g:'アンドロゲン↑・排卵障害'},labs:[['テストステロン','u']],
+  read:'LHだけ高くFSHは正常 → 卵巣でアンドロゲン↑・卵胞が育たない。',
+  mech:'LH優位の刺激とインスリン抵抗性で莢膜細胞のアンドロゲン産生が増え、卵胞発育が止まる。',
+  sx:['月経不順・無排卵','多毛・ざ瘡','肥満・インスリン抵抗性（日本人は非肥満も多い）','不妊'],
+  dx:['超音波で多数の小卵胞（ネックレスサイン）','LH高値・FSH正常','アンドロゲン高値'],
+  tx:'挙児希望では排卵誘発（クロミフェンなど）、体重減少。希望なしでは周期的黄体ホルモン・低用量ピル。',pearl:'無排卵で黄体ホルモンが出ない → 子宮内膜増殖症・内膜癌リスク。'},
+ {id:'gon-aas',at:'ext',dir:'u',btn:'アナボリックステロイド',name:'外因性アンドロゲンによる性腺機能低下',level:'外因性',st:{h:'d',p:'d',g:'d'},note:{g:'内因性T↓（精巣萎縮）。外因分で総アンドロゲンは↑'},labs:[['Hb','u'],['HDL-C','d']],
+  read:'筋肉はあるのに精巣が小さく LH/FSH↓ → 外から入っている。',
+  mech:'外因性アンドロゲンがGnRH・LH/FSHを抑制し、精巣内テストステロンが低下する。',
+  sx:['精巣萎縮・無精子症','女性化乳房（芳香化）','多血症・脂質異常'],dx:['使用歴','LH/FSH低値'],
+  tx:'中止。',pearl:'テストステロン補充は精子形成をむしろ抑える（挙児希望には不適）。'}
+ ]},
+{id:'pth',name:'Ca・PTH',loop:'血清Ca↓をCa感知受容体が感知してPTH↑。PTHは骨吸収↑・腎Ca再吸収↑・リン排泄↑・1α水酸化↑。',
+ nodes:[{id:'a',organ:'副甲状腺',hormone:'PTH'},{id:'b',organ:'腎（近位尿細管の1α水酸化）',hormone:'1,25(OH)₂D（活性型ビタミンD）'},{id:'c',organ:'血清',hormone:'Ca'}],
+ edges:[['刺激','PTH → 1α水酸化'],['刺激','活性型D → 腸管Ca吸収']],
+ scen:[
+ {id:'pth-p',at:'a',dir:'u',btn:'腺腫の自律分泌',name:'原発性副甲状腺機能亢進症',level:'原発性',st:{a:'u',b:'u',c:'u'},labs:[['P','d'],['尿中Ca','u'],['ALP','u']],
+  read:'Ca↑なのにPTHが抑制されていない → 副甲状腺が勝手に出している。',
+  mech:'大部分は単発の腺腫、ほかに過形成・癌。MEN1・MEN2Aでは過形成。',
+  sx:['無症状で偶然の高Caが最多','尿路結石','骨粗鬆症・線維性骨炎','消化性潰瘍・膵炎','多尿・口渇（腎性尿崩症）','抑うつ・意識障害'],
+  dx:['高Ca＋PTH高値（不適切に抑制されていない）','低P','頸部エコー・99mTc-MIBIシンチで局在'],
+  tx:'副甲状腺摘出術。高Caクリーゼは生理食塩水補液・ビスホスホネート・カルシトニン。',pearl:'高Ca＋PTH↑ → 原発性HPT。高Ca＋PTH↓ → 悪性腫瘍などを考える。',link:{seg:'dct'}},
+ {id:'pth-hypo',at:'a',dir:'d',btn:'副甲状腺の喪失',name:'副甲状腺機能低下症',level:'原発性',st:{a:'d',b:'d',c:'d'},labs:[['P','u'],['Mg','確認']],
+  read:'Ca↓なのにPTHも↓ → 副甲状腺が出せない。',
+  mech:'甲状腺手術後が最多。ほかに自己免疫、22q11.2欠失（DiGeorge症候群）。',
+  sx:['口周囲・手指のしびれ、テタニー','Chvostek徴候・Trousseau徴候','QT延長・痙攣','大脳基底核石灰化・白内障'],
+  dx:['低Ca・高P・PTH低値','低Mgの有無を確認'],
+  tx:'活性型ビタミンD＋Ca。急性テタニーにはグルコン酸Ca静注。',pearl:'低MgはPTHの分泌と作用を両方障害する。Mgを補正しないとCaが上がらない。'},
+ {id:'pth-pseudo',at:'a',dir:'d',btn:'PTHが効かない（受容体下流）',name:'偽性副甲状腺機能低下症',level:'受容体異常',st:{a:'u',b:'d',c:'d'},note:{a:'PTH↑だが作用↓'},labs:[['P','u'],['尿中cAMP','反応↓']],
+  read:'PTH↑なのに低Ca・高P → PTHが効いていない。',
+  mech:'PTH受容体下流のGsα（GNAS遺伝子）異常で、腎と骨がPTHに反応しない。',
+  sx:['低Ca症状','1a型ではAlbright遺伝性骨異栄養症（低身長・円形顔貌・第4/5中手骨短縮・皮下骨化）'],
+  dx:['PTH高値＋低Ca・高P（腎機能正常）','Ellsworth-Howard試験で尿中cAMP・リン排泄の反応低下'],
+  tx:'活性型ビタミンD＋Ca。',pearl:'1a型はTSHなど他のGs共役ホルモンにも抵抗性を示すことがある。'},
+ {id:'pth-ckd',at:'b',dir:'d',btn:'腎機能低下（CKD）',name:'二次性副甲状腺機能亢進症（CKD）',level:'続発性',st:{a:'u',b:'d',c:'d'},labs:[['P','u'],['ALP','u']],
+  read:'PTH↑なのにCa↓ → PTHは原因ではなく反応している。',
+  mech:'リン排泄低下と1α水酸化低下で低Ca・高Pとなり、PTHが代償的に上がる（FGF23も上昇）。',
+  sx:['腎性骨異栄養症（CKD-MBD）','血管石灰化','皮膚掻痒'],dx:['PTH高値・高P・1,25D低値'],
+  tx:'リン吸着薬、活性型ビタミンD、シナカルセト（Ca感知受容体作動薬）。',pearl:'長期化して副甲状腺が自律性を持つと三次性HPT（高Ca）になる。'},
+ {id:'pth-vitd',at:'b',dir:'d',btn:'ビタミンD欠乏',name:'くる病・骨軟化症（ビタミンD欠乏）',level:'続発性',st:{a:'u',b:'d',c:'d'},note:{b:'25(OH)D↓',c:'低〜正常（PTHで維持）'},labs:[['P','d'],['ALP','u']],
+  read:'PTH↑でCaは保たれるが、Pが尿に逃げて骨が石灰化できない。',
+  mech:'日光曝露不足・吸収不良・母乳栄養で25(OH)Dが低下。PTH↑でCaは維持されるが、リン利尿で低Pとなる。',
+  sx:['くる病（小児）：O脚・肋骨念珠・頭蓋癆','骨軟化症（成人）：骨痛・近位筋力低下・偽骨折'],dx:['25(OH)D低値','ALP高値・低P'],
+  tx:'ビタミンD補充。',pearl:'くる病・骨軟化症の本態は「骨の石灰化障害」。骨粗鬆症（骨量減少）とは別物。'},
+ {id:'pth-sarc',at:'b',dir:'u',btn:'肉芽腫の1α水酸化',name:'サルコイドーシスの高Ca血症',level:'PTH非依存性',st:{a:'d',b:'u',c:'u'},labs:[['尿中Ca','u'],['ACE','u']],
+  read:'PTH↓なのに1,25D↑ → 腎以外（肉芽腫）が活性化している。',
+  mech:'肉芽腫のマクロファージがPTHの制御を受けずに1α水酸化を行う。',
+  sx:['高Ca血症・高Ca尿症','両側肺門リンパ節腫脹','ぶどう膜炎'],dx:['PTH低値＋1,25D高値','ACE・sIL-2R高値'],
+  tx:'ステロイド（1α水酸化を抑制）。',pearl:'同じ機序は結核・悪性リンパ腫でも起こる。'},
+ {id:'pth-hhm',at:'ext',dir:'u',btn:'PTHrP産生腫瘍',name:'悪性腫瘍随伴性高Ca血症（HHM）',level:'異所性',st:{a:'d',b:'d',c:'u'},note:{a:'PTH↓（PTHrPが代わりに作用）'},labs:[['PTHrP','u'],['P','d']],
+  read:'高CaなのにPTH↓・PTHrP↑ → 腫瘍がPTHのそっくりさんを出している。',
+  mech:'扁平上皮癌（肺・食道・頭頸部）や成人T細胞白血病がPTH関連蛋白（PTHrP）を分泌し、PTH受容体を刺激する。',
+  sx:['急速に進む高Ca：意識障害・脱水・多尿・便秘・嘔吐','QT短縮'],dx:['PTH低値・PTHrP高値'],
+  tx:'生理食塩水補液、ビスホスホネート・デノスマブ、カルシトニン。',pearl:'悪性腫瘍に伴う高Caで最多の機序。もう一つは骨転移による局所骨溶解。'}
+ ]},
+{id:'raa',name:'RAA系',loop:'循環血漿量↑・Na↑でレニン↓。アルドステロンは集合管でNa再吸収↑とK⁺・H⁺排泄↑を起こす。',
+ nodes:[{id:'r',organ:'腎（傍糸球体細胞）',hormone:'レニン'},{id:'a2',organ:'血中（肺のACE）',hormone:'アンジオテンシンII'},{id:'al',organ:'副腎皮質（球状層）',hormone:'アルドステロン'},{id:'m',organ:'集合管・主細胞',hormone:'MR → ENaC（Na再吸収・K排泄）'}],
+ edges:[['刺激','AngI →(ACE)→ AngII'],['刺激','AngII → アルドステロン分泌'],['刺激','アルドステロン → MR']],
+ scen:[
+ {id:'raa-pa',at:'al',dir:'u',btn:'腺腫・過形成の自律分泌',name:'原発性アルドステロン症',level:'原発性（副腎性）',st:{r:'d',a2:'d',al:'u',m:'u'},labs:[['血圧','u'],['K','d'],['代謝性','アルカローシス'],['ARR','u']],
+  read:'レニン↓なのにアルドステロン↑ → 副腎が勝手に出している。',
+  mech:'片側の腺腫、または両側の過形成。Na貯留でレニンは抑制される。',
+  sx:['高血圧（治療抵抗性・若年発症）','低K（筋力低下・周期性四肢麻痺・多尿）','浮腫は来さない（aldosterone escape）','本態性高血圧より心血管・腎合併症が多い'],
+  dx:['アルドステロン/レニン比（ARR）高値でスクリーニング','確認検査（カプトプリル負荷・生理食塩水負荷・立位フロセミド負荷）','副腎CT','副腎静脈サンプリングで片側か両側かを判定'],
+  tx:'片側性は腹腔鏡下副腎摘除、両側性はMR拮抗薬（スピロノラクトン・エプレレノン）。',pearl:'二次性高血圧で最多。低Kがなくても否定できない。',link:{seg:'cdp'}},
+ {id:'raa-rvh',at:'r',dir:'u',btn:'腎動脈狭窄',name:'腎血管性高血圧',level:'続発性（二次性アルドステロン症）',st:{r:'u',a2:'u',al:'u',m:'u'},labs:[['血圧','u'],['K','d']],
+  read:'レニン↑とアルドステロン↑が同じ向き → 上流（腎）が原因。',
+  mech:'腎動脈狭窄で腎灌流圧が下がり、傍糸球体細胞がレニンを過剰分泌する。若年女性は線維筋性異形成、高齢者は動脈硬化。',
+  sx:['急な発症・増悪の高血圧','腹部血管雑音','腎サイズの左右差','ACE阻害薬/ARB開始後の急な腎機能悪化','突然の肺水腫'],
+  dx:['レニン高値','腎動脈エコー・CTA/MRA','カプトプリル負荷レノグラム'],
+  tx:'線維筋性異形成は経皮的腎動脈形成術、動脈硬化性は内科治療が中心。',pearl:'両側腎動脈狭窄にACE阻害薬/ARBは禁忌（輸出細動脈が開いてGFRが落ちる）。'},
+ {id:'raa-eff',at:'r',dir:'u',btn:'有効循環血漿量↓',name:'心不全・肝硬変・ネフローゼの二次性アルドステロン症',level:'続発性',st:{r:'u',a2:'u',al:'u',m:'u'},labs:[['浮腫','あり'],['Na','d']],
+  read:'レニン↑アルド↑で、しかも浮腫がある → 腎が「血が足りない」と誤認している。',
+  mech:'有効循環血漿量の低下を腎が感知してRAA系が活性化し、Na・水貯留が浮腫を悪化させる。ADHも亢進する。',
+  sx:['浮腫・腹水','低Na'],dx:['レニン・アルド高値','利尿薬なしで尿中Na低値'],
+  tx:'原疾患の治療、ループ利尿薬＋MR拮抗薬（肝硬変の腹水はスピロノラクトンが基本）。',pearl:'原発性アルドでは浮腫が出ないのに、こちらは浮腫が出る。'},
+ {id:'raa-add',at:'al',dir:'d',btn:'副腎の破壊',name:'Addison病（鉱質コルチコイド欠乏）',level:'原発性（副腎性）',st:{r:'u',a2:'u',al:'d',m:'d'},labs:[['Na','d'],['K','u'],['代謝性','アシドーシス'],['血圧','d']],
+  read:'レニン↑なのにアルドステロン↓ → 副腎が応えられない。',
+  mech:'副腎皮質の全層性破壊で球状層も失われる。',sx:['低血圧・脱水','塩分渇望','色素沈着'],dx:['レニン高値・アルド低値','迅速ACTH試験で無反応'],
+  tx:'フルドロコルチゾン＋ヒドロコルチゾン。',pearl:'HPA軸のAddison病と同じ疾患を、鉱質コルチコイド側から見ている。',link:{axis:'hpa',scen:'hpa-add'}},
+ {id:'raa-cah',at:'al',dir:'d',btn:'21-水酸化酵素欠損',name:'先天性副腎過形成（21-水酸化酵素欠損症）',level:'酵素欠損',st:{r:'u',a2:'u',al:'d',m:'d'},labs:[['17-OHP','u'],['Na','d'],['K','u']],
+  read:'アルド↓・コルチゾール↓で上流（レニン・ACTH）が全開、行き場のない前駆体がアンドロゲンへ。',
+  mech:'コルチゾールとアルドステロンを作れずACTHが上昇し、副腎が過形成となって副腎アンドロゲンが過剰になる。',
+  sx:['女児の外性器男性化','新生児期の塩類喪失（嘔吐・脱水・ショック）','色素沈着'],dx:['新生児マススクリーニングで17-OHP高値'],
+  tx:'ヒドロコルチゾン＋フルドロコルチゾン。',pearl:'先天性副腎過形成の大部分を占める病型。'},
+ {id:'raa-hrha',at:'r',dir:'d',btn:'傍糸球体装置の障害',name:'低レニン性低アルドステロン症',level:'続発性',st:{r:'d',a2:'d',al:'d',m:'d'},labs:[['K','u'],['代謝性','アシドーシス']],
+  read:'レニンもアルドも低く、高K → 上流が出せていない（4型RTAの代表）。',
+  mech:'糖尿病性腎症などで傍糸球体装置が障害されレニン分泌が低下する。NSAIDsやβ遮断薬もレニンを下げる。',
+  sx:['無症候性の高K血症','軽度の高Cl性代謝性アシドーシス'],dx:['レニン・アルド低値','尿pHは5.5未満に下げられる'],
+  tx:'K制限、ループ利尿薬、原因薬（ACE阻害薬/ARB・NSAIDs）の見直し。',pearl:'糖尿病患者の原因不明の高Kで想起する。',link:{seg:'cdp'}},
+ {id:'raa-lic',at:'m',dir:'u',btn:'甘草でMRが過剰刺激',name:'偽性アルドステロン症（甘草）',level:'受容体の過剰刺激',st:{r:'d',a2:'d',al:'d',m:'u'},note:{m:'コルチゾールがMRを刺激'},labs:[['血圧','u'],['K','d'],['CK','u']],
+  read:'レニン↓アルド↓なのにアルドステロン作用↑ → アルドステロン以外がMRを押している。',
+  mech:'甘草（グリチルリチン）が11β-HSD2を阻害し、普段は不活化されるコルチゾールがMRを刺激する。',
+  sx:['高血圧','低K・ミオパチー（CK↑）','漢方（芍薬甘草湯など）の服用歴'],dx:['レニン・アルドとも低値','服薬歴'],
+  tx:'原因薬の中止、スピロノラクトン。',pearl:'甘草を含む漢方を複数併用している高齢者の低K。'},
+ {id:'raa-lid',at:'m',dir:'u',btn:'ENaCの機能獲得',name:'Liddle症候群',level:'受容体下流の異常',st:{r:'d',a2:'d',al:'d',m:'u'},note:{m:'ENaCが恒常的に活性化'},labs:[['血圧','u'],['K','d'],['代謝性','アルカローシス']],
+  read:'レニン↓アルド↓なのにNa再吸収↑ → MRよりさらに下流の異常。',
+  mech:'ENaCの機能獲得型変異で、チャネルが分解されず管腔膜に残り続ける（常染色体顕性）。',
+  sx:['若年発症の高血圧','低K','家族歴'],dx:['レニン・アルド低値','スピロノラクトン無効'],
+  tx:'アミロライド・トリアムテレン（ENaC阻害）＋減塩。',pearl:'MRより下流なのでMR拮抗薬は効かない。',link:{seg:'cdp'}},
+ {id:'raa-pha',at:'m',dir:'d',btn:'MR・ENaCの機能喪失',name:'偽性低アルドステロン症1型',level:'受容体異常',st:{r:'u',a2:'u',al:'u',m:'d'},labs:[['Na','d'],['K','u'],['代謝性','アシドーシス']],
+  read:'アルド↑なのに高K・低Na → 受け手が応えない。',
+  mech:'MR（常染色体顕性）またはENaC（常染色体潜性）の機能喪失でアルドステロンが効かない。',
+  sx:['新生児〜乳児期の塩類喪失（体重増加不良・脱水）'],dx:['レニン・アルド著高値＋高K・低Na'],
+  tx:'食塩補充（MR型は年齢とともに軽快）。',pearl:'Liddle症候群の鏡像。',link:{seg:'cdp'}}
+ ]},
+{id:'adh',name:'ADH・水',loop:'血漿浸透圧↑（Na↑）や循環血漿量↓でADH↑。ADHは水を保持し、Naを薄める。',
+ nodes:[{id:'h',organ:'視床下部 → 下垂体後葉',hormone:'ADH（バソプレシン）'},{id:'k',organ:'集合管・主細胞',hormone:'V2受容体 → AQP2（水再吸収）'},{id:'na',organ:'血清',hormone:'Na（血漿浸透圧）'}],
+ edges:[['刺激','ADH → V2受容体'],['希釈','水を戻すほどNaは下がる']],
+ scen:[
+ {id:'adh-siadh',at:'h',dir:'u',btn:'ADHの不適切分泌',name:'SIADH（ADH不適合分泌症候群）',level:'ADH過剰',st:{h:'u',k:'u',na:'d'},labs:[['血漿浸透圧','d'],['尿浸透圧','血漿より高い'],['尿中Na','u'],['尿酸','d'],['体液量','正常']],
+  read:'Na↓（低浸透圧）なのにADHが抑制されず、尿が濃い。',
+  mech:'肺小細胞癌（異所性産生）、中枢神経疾患（髄膜炎・くも膜下出血・頭部外傷）、肺疾患（肺炎・結核）、薬剤（ビンクリスチン、シクロホスファミド、カルバマゼピン、SSRI）。',
+  sx:['軽症は無症状','重症で頭痛・嘔気・意識障害・痙攣','浮腫も脱水もない（正常体液量）'],
+  dx:['低Na＋低浸透圧','尿浸透圧が不適切に高い・尿中Na高値','甲状腺機能・副腎機能が正常'],
+  tx:'水制限。重症（痙攣・意識障害）は3%高張食塩水。トルバプタン。',pearl:'急速補正で浸透圧性脱髄症候群（ODS）。補正速度を守る。'},
+ {id:'adh-cdi',at:'h',dir:'d',btn:'ADH分泌の低下',name:'中枢性尿崩症',level:'ADH欠乏',st:{h:'d',k:'d',na:'u'},note:{na:'飲水できれば正常上限〜高値'},labs:[['尿量','u'],['尿浸透圧','d'],['血漿浸透圧','u']],
+  read:'尿が薄いのにADH↓、デスモプレシンを入れると尿が濃くなる。',
+  mech:'特発性、胚細胞腫、頭蓋咽頭腫、ランゲルハンス細胞組織球症、IgG4関連疾患、術後・外傷で後葉系が障害される。',
+  sx:['多尿・口渇・多飲（冷水を好む）','夜間尿'],
+  dx:['水制限試験で尿が濃縮されない','高張食塩水負荷でADHが反応しない','デスモプレシンで尿浸透圧が上昇','MRI T1で後葉高信号消失'],
+  tx:'デスモプレシン（過量で低Na）。',pearl:'前葉不全を合併すると副腎不全が尿崩症を隠し、ステロイド補充で多尿が顕在化する（仮面尿崩症）。'},
+ {id:'adh-ndi',at:'k',dir:'d',btn:'腎がADHに不応',name:'腎性尿崩症',level:'受容体異常',st:{h:'u',k:'d',na:'u'},labs:[['尿浸透圧','d'],['ADH','u']],
+  read:'ADH↑なのに尿が薄い → 腎が応えない。',
+  mech:'炭酸リチウム、高Ca血症、低K血症、先天性（V2受容体はX連鎖、AQP2は常染色体）。',
+  sx:['多尿・多飲'],dx:['デスモプレシンに反応しない','ADH高値'],
+  tx:'原因除去、サイアザイド＋低塩食。',pearl:'尿崩症にサイアザイドという逆説：体液量↓で近位のNa・水再吸収が増え、尿量が減る。',link:{seg:'cdp'}},
+ {id:'adh-pp',at:'na',dir:'d',btn:'大量の飲水',name:'心因性多飲',level:'ADH系は正常',st:{h:'d',k:'d',na:'d'},note:{h:'適切に抑制されている',na:'低下（正常のことも）'},labs:[['尿浸透圧','著明に低い']],
+  read:'Na↓だがADHは正しく抑制され、尿は極端に薄い → 入れすぎ。',
+  mech:'腎の希釈・排泄能を超える大量の飲水。',sx:['多飲多尿','精神疾患（統合失調症など）が背景にあることが多い'],
+  dx:['尿浸透圧が非常に低い（100 mOsm/kg未満が目安）','水制限で尿が濃縮される'],
+  tx:'飲水制限。',pearl:'SIADHとの分岐点は尿浸透圧。'}
+ ]}
+];
+
+const TK=[['na','血清Na'],['k','血清K'],['ab','酸塩基'],['uca','尿中Ca'],['mg','血清Mg'],['bp','血圧・体液量'],['ra','レニン/アルド']];
+const SEG=[
+{id:'pt',name:'近位尿細管',share:'Na再吸収の約2/3',trans:['Na⁺/H⁺交換輸送体（NHE3）','SGLT2（ブドウ糖）','炭酸脱水酵素によるHCO₃⁻再吸収','Na-Pi共輸送体（リン）','アミノ酸・尿酸'],horm:['AngII：Na再吸収↑','PTH：リン再吸収↓、1α水酸化↑'],
+ scen:[
+ {id:'acz',name:'アセタゾラミド（炭酸脱水酵素阻害薬）',kind:'薬',v:{na:'n',k:'d',ab:'A',uca:'x',mg:'x',bp:'n',ra:'x'},mech:'HCO₃⁻再吸収が落ち、HCO₃⁻尿と高Cl性代謝性アシドーシスになる。遠位へのNa到達増加でK排泄が増える。',note:'尿はアルカリ性。緑内障・高山病に使う。',pearl:'利尿作用は弱い。アシドーシスになると効果が自己制限される。'},
+ {id:'rta2',name:'2型RTA（近位尿細管性アシドーシス）',kind:'病態',v:{na:'n',k:'d',ab:'A',uca:'x',mg:'x',bp:'n',ra:'x'},mech:'近位でのHCO₃⁻再吸収の閾値が下がり、HCO₃⁻が尿に漏れる。',note:'AG正常の代謝性アシドーシス。血中HCO₃⁻が下がりきると尿pH<5.5にできる。',pearl:'遠位の酸排泄は正常なので、腎結石は少ない。'},
+ {id:'fan',name:'Fanconi症候群',kind:'病態',v:{na:'n',k:'d',ab:'A',uca:'x',mg:'x',bp:'n',ra:'x'},mech:'近位尿細管の再吸収が全般的に障害される。',note:'腎性糖尿（血糖正常）・アミノ酸尿・リン尿・尿酸尿・HCO₃⁻尿。低Pでくる病・骨軟化症。',pearl:'原因：多発性骨髄腫（軽鎖）、Wilson病、シスチン症、テノホビル、イホスファミド。'},
+ {id:'sglt',name:'SGLT2阻害薬',kind:'薬',v:{na:'n',k:'n',ab:'x',uca:'x',mg:'x',bp:'d',ra:'x'},mech:'ブドウ糖とNaの再吸収を阻害し、尿糖と浸透圧利尿を起こす。',note:'心不全・CKDで予後改善のエビデンスがある。',pearl:'血糖が高くなくてもケトアシドーシス（正常血糖DKA）を起こしうる。'}
+ ]},
+{id:'tal',name:'ヘンレ上行脚（太い部）',share:'Na再吸収の約25%',trans:['NKCC2（Na⁺-K⁺-2Cl⁻共輸送体）','ROMK（K⁺を管腔へ戻し、管腔を正電位にする）','管腔正電位でCa²⁺・Mg²⁺を傍細胞経路で再吸収'],horm:['水は通さない → 尿の希釈と対向流系の原動力'],
+ scen:[
+ {id:'loop',name:'ループ利尿薬（フロセミド）',kind:'薬',v:{na:'n',k:'d',ab:'L',uca:'u',mg:'d',bp:'d',ra:'u'},mech:'NKCC2を阻害。管腔正電位が消えてCa・Mgの再吸収も落ちる。遠位へのNa到達増加とRAA活性化でK⁺・H⁺排泄が増える。',note:'高Ca尿 → 高Ca血症の治療に補液後で使うことがある。',pearl:'耳毒性（アミノグリコシド併用で増強）・高尿酸。'},
+ {id:'bart',name:'Bartter症候群',kind:'病態',v:{na:'n',k:'d',ab:'L',uca:'u',mg:'n',bp:'d',ra:'u'},mech:'NKCC2・ROMK・ClC-Kbなどの機能喪失。ループ利尿薬を飲み続けている状態と同じ。',note:'新生児〜幼児期発症、羊水過多・早産、成長障害、多尿、腎石灰化。血圧は正常〜低め。Mgは正常〜軽度低下。',pearl:'PGE2↑を伴いインドメタシン（NSAIDs）が効く。'}
+ ]},
+{id:'dct',name:'遠位曲尿細管',share:'Na再吸収の約5〜10%',trans:['NCC（Na⁺-Cl⁻共輸送体）','TRPV5（Ca²⁺再吸収）','TRPM6（Mg²⁺再吸収）'],horm:['PTH：Ca再吸収↑'],
+ scen:[
+ {id:'thz',name:'サイアザイド系利尿薬',kind:'薬',v:{na:'d',k:'d',ab:'L',uca:'d',mg:'d',bp:'d',ra:'u'},mech:'NCCを阻害。細胞内Naが下がり基底側のNa⁺/Ca²⁺交換が進むため、Ca再吸収はむしろ増える。',note:'高齢者の低Na血症、高尿酸・高血糖・脂質異常、光線過敏。',pearl:'低Ca尿 → 尿路結石予防・骨粗鬆症に有利。高Ca血症の患者には避ける。'},
+ {id:'git',name:'Gitelman症候群',kind:'病態',v:{na:'n',k:'d',ab:'L',uca:'d',mg:'d',bp:'d',ra:'u'},mech:'NCCの機能喪失。サイアザイドを飲み続けている状態と同じ。',note:'学童〜成人で発見、脱力・テタニー（低Mg）、塩分渇望。Bartterより軽症。',pearl:'Bartterとの鑑別は尿中Ca（Gitelmanは低い）と低Mg。'}
+ ]},
+{id:'cdp',name:'集合管・主細胞',share:'Na再吸収の数%（最終調整）',trans:['ENaC（Na⁺再吸収、管腔を負電位にする）','ROMK（K⁺分泌）','AQP2（水チャネル）'],horm:['アルドステロン → MR：ENaC・Na⁺/K⁺-ATPase↑','ADH → V2受容体：AQP2を管腔膜へ'],
+ scen:[
+ {id:'spi',name:'スピロノラクトン・エプレレノン（MR拮抗薬）',kind:'薬',v:{na:'n',k:'u',ab:'A',uca:'x',mg:'x',bp:'d',ra:'u'},mech:'アルドステロンの受容体（MR）を遮断し、Na再吸収とK⁺・H⁺分泌を抑える。',note:'スピロノラクトンは抗アンドロゲン作用で女性化乳房（エプレレノンは少ない）。',pearl:'ACE阻害薬/ARB併用・腎機能低下時の高Kに注意。',link:{axis:'raa',scen:'raa-pa'}},
+ {id:'ami',name:'アミロライド・トリアムテレン（ENaC阻害薬）',kind:'薬',v:{na:'n',k:'u',ab:'A',uca:'x',mg:'x',bp:'d',ra:'u'},mech:'ENaCを直接遮断。MRより下流で効く。',note:'ST合剤のトリメトプリムも同じくENaCを阻害して高Kを起こす。',pearl:'Liddle症候群の治療薬。'},
+ {id:'lid',name:'Liddle症候群',kind:'病態',v:{na:'n',k:'d',ab:'L',uca:'x',mg:'x',bp:'u',ra:'d'},mech:'ENaCの機能獲得型変異。',note:'若年発症の高血圧＋低K、レニン・アルドとも低値。',pearl:'スピロノラクトンは無効、アミロライドが効く。',link:{axis:'raa',scen:'raa-lid'}},
+ {id:'pha1',name:'偽性低アルドステロン症1型',kind:'病態',v:{na:'d',k:'u',ab:'A',uca:'x',mg:'x',bp:'d',ra:'u'},mech:'MRまたはENaCの機能喪失。',note:'新生児〜乳児期の塩類喪失。',pearl:'アルドステロン著高値なのに高K。',link:{axis:'raa',scen:'raa-pha'}},
+ {id:'rta4',name:'4型RTA（低アルドステロン・アルドステロン抵抗）',kind:'病態',v:{na:'n',k:'u',ab:'A',uca:'x',mg:'x',bp:'n',ra:'d'},mech:'アルドステロン作用が落ちてK分泌が減る。高Kが近位のアンモニア産生を抑え、酸排泄も落ちる。',note:'原因：糖尿病性腎症（低レニン性）、ACE阻害薬/ARB、NSAIDs、ST合剤、カルシニューリン阻害薬。レニン/アルドは病型で異なり、抵抗型では高値。',pearl:'RTAで唯一の高K型。成人では最も多い。',link:{axis:'raa',scen:'raa-hrha'}},
+ {id:'ndi',name:'腎性尿崩症',kind:'病態',v:{na:'u',k:'n',ab:'x',uca:'x',mg:'x',bp:'n',ra:'x'},mech:'V2受容体またはAQP2の異常で、ADHがあっても水を戻せない。',note:'尿浸透圧↓、デスモプレシン無効。リチウム・高Ca・低Kでも起こる。',pearl:'治療にサイアザイドを使う逆説。',link:{axis:'adh',scen:'adh-ndi'}}
+ ]},
+{id:'cda',name:'集合管・α間在細胞',share:'酸（H⁺）の最終排泄',trans:['H⁺-ATPase（H⁺分泌）','H⁺/K⁺-ATPase（H⁺分泌とK⁺再吸収）','AE1（HCO₃⁻を血液側へ）'],horm:['アルドステロン：H⁺分泌↑'],
+ scen:[
+ {id:'rta1',name:'1型RTA（遠位尿細管性アシドーシス）',kind:'病態',v:{na:'n',k:'d',ab:'A',uca:'u',mg:'x',bp:'n',ra:'x'},mech:'α間在細胞がH⁺を分泌できず、尿を酸性化できない。',note:'アシドーシスなのに尿pH>5.5。尿中クエン酸↓・尿Ca↑で腎結石・腎石灰化。原因：Sjögren症候群などの自己免疫、アムホテリシンB、先天性。',pearl:'治療はクエン酸Kなどのアルカリ補充。'}
+ ]}
+];
+
+const G={u:'↑',d:'↓',n:'→'};
+const TV={u:['↑','u'],d:['↓','d'],n:['→','n'],A:['代アシ','A'],L:['代アル','L'],x:['－','x']};
+const S={tab:'axis',axis:'hpa',scen:'hpa-adr',open:null,seg:'tal',tscen:'loop',cmp:false,fresh:true,q:null,score:[0,0]};
+try{const s=JSON.parse(localStorage.getItem('endo-sim')||'{}');if(s.tab)S.tab=s.tab;if(s.axis&&AX.some(a=>a.id===s.axis)){S.axis=s.axis;S.scen=AX.find(a=>a.id===s.axis).scen[0].id}}catch(e){}
+function save(){try{localStorage.setItem('endo-sim',JSON.stringify({tab:S.tab,axis:S.axis}))}catch(e){}}
+
+const $v=document.getElementById('view');
+const ax=()=>AX.find(a=>a.id===S.axis);
+const allScen=()=>AX.flatMap(a=>a.scen.map(s=>({...s,ax:a})));
+
+const NS='http://www.w3.org/2000/svg';
+/* node position in body coords: [x, y, label side, organ key, short name] */
+const POS={
+hpa:{h:[150,46,'l','brain','CRH'],p:[150,76,'r','pit','ACTH'],g:[178,263,'r','adrL','コルチゾール']},
+thy:{h:[150,46,'l','brain','TRH'],p:[150,76,'r','pit','TSH'],g:[150,128,'r','thyroid','FT4/FT3']},
+gh:{h:[150,46,'l','brain','GHRH'],p:[150,76,'r','pit','GH'],g:[124,233,'l','liver','IGF-1']},
+prl:{h:[150,46,'l','brain','ドパミン'],p:[150,76,'r','pit','PRL'],g:[150,370,'r','gonad','LH/FSH・性ホルモン']},
+gon:{h:[150,46,'l','brain','GnRH'],p:[150,76,'r','pit','LH/FSH'],g:[150,370,'r','gonad','E2/T']},
+pth:{a:[160,130,'r','para','PTH'],b:[122,288,'l','kidR','1,25(OH)₂D'],c:[150,318,'r','blood','Ca']},
+raa:{r:[122,288,'l','kidR','レニン'],a2:[122,180,'l','lungR','AngII'],al:[178,263,'r','adrL','アルドステロン'],m:[178,290,'r','kidL','MR→ENaC']},
+adh:{h:[150,72,'l','pit','ADH'],k:[178,290,'r','kidL','水再吸収'],na:[150,318,'l','blood','Na']}
+};
+const FB={hpa:['g','h','抑制','コルチゾール'],thy:['g','h','抑制','FT4'],gh:['g','h','抑制','IGF-1'],prl:['p','h','刺激','PRL'],gon:['g','h','抑制','性ホルモン'],pth:['c','a','抑制','Ca'],raa:['m','r','抑制','体液量'],adh:['na','h','刺激','浸透圧']};
+const EXT={
+'hpa-ect':{from:[186,172],icon:'tumor',to:'g',c:1,label:'肺癌 → ACTH',flow:{p:'d'}},
+'hpa-exo':{from:[-18,205],icon:'pill',to:'g',c:2,label:'ステロイド',fb:'u'},
+'thy-exo':{from:[-18,150],icon:'pill',to:'g',c:2,label:'T4製剤',fb:'u'},
+'prl-thy':{from:[150,128],icon:'tumor',to:'p',c:3,label:'甲状腺↓ → TRH↑'},
+'gon-aas':{from:[-18,330],icon:'pill',to:'g',c:2,label:'アンドロゲン',fb:'u'},
+'pth-hhm':{from:[186,172],icon:'tumor',to:'c',c:0,label:'癌 → PTHrP'}
+};
+const RATE={u:9,n:3,d:.6};
+const MK={u:84,n:50,d:16};
+const ENG={raf:0,edges:[],parts:[],rates:{},marks:{},layer:null,last:0};
+const RM=matchMedia('(prefers-reduced-motion: reduce)');
+let PEND=[];
+
+function curve(p,q,sign,k){
+  const dx=q[0]-p[0],dy=q[1]-p[1],L=Math.hypot(dx,dy)||1;
+  const off=sign*(Math.min(46,L*k)+8);
+  const cx=(p[0]+q[0])/2-dy/L*off, cy=(p[1]+q[1])/2+dx/L*off;
+  const trim=(a,b,t)=>{const vx=b[0]-a[0],vy=b[1]-a[1],l=Math.hypot(vx,vy)||1;return [a[0]+vx/l*t,a[1]+vy/l*t]};
+  const s=trim(p,[cx,cy],9), e=trim(q,[cx,cy],11);
+  return {d:`M${s[0].toFixed(1)} ${s[1].toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${e[0].toFixed(1)} ${e[1].toFixed(1)}`,mid:[(s[0]+2*cx+e[0])/4,(s[1]+2*cy+e[1])/4]};
+}
+function organs(oc){
+  return `<path class="sil" d="M150 114 C122 114 96 117 84 131 C74 143 70 170 66 210 L58 300 Q56 316 66 318 Q74 318 76 304 L86 214 L92 182 C92 232 94 282 98 330 C100 370 104 400 108 420 L192 420 C196 400 200 370 202 330 C206 282 208 232 208 182 L214 214 L224 304 Q226 318 234 318 Q244 316 242 300 L234 210 C230 170 226 143 216 131 C204 117 178 114 150 114 Z"/>
+  <rect class="sil" x="136" y="94" width="28" height="26" rx="7"/>
+  <ellipse class="sil" cx="150" cy="56" rx="36" ry="43"/>
+  <ellipse class="org${oc('brain')}" cx="150" cy="44" rx="26" ry="19"/>
+  <circle class="org${oc('pit')}" cx="150" cy="75" r="6"/>
+  <g class="org${oc('thyroid')}"><ellipse cx="142" cy="128" rx="8" ry="6"/><ellipse cx="158" cy="128" rx="8" ry="6"/></g>
+  <g class="org${oc('para')}"><circle cx="139" cy="124" r="2.4"/><circle cx="161" cy="124" r="2.4"/><circle cx="139" cy="133" r="2.4"/><circle cx="161" cy="133" r="2.4"/></g>
+  <ellipse class="org${oc('lungR')}" cx="122" cy="182" rx="20" ry="34"/>
+  <ellipse class="org${oc('lungL')}" cx="178" cy="182" rx="20" ry="34"/>
+  <ellipse class="org" cx="158" cy="200" rx="13" ry="11"/>
+  <path class="aorta" d="M152 206 L152 340 M152 340 L138 368 M152 340 L166 368"/>
+  <path class="org${oc('liver')}" d="M98 222 Q130 210 162 222 Q150 247 112 251 Q98 244 98 222 Z"/>
+  <path class="org${oc('adrR')}" d="M113 270 L122 256 L131 270 Z"/>
+  <path class="org${oc('adrL')}" d="M169 270 L178 256 L187 270 Z"/>
+  <ellipse class="org${oc('kidR')}" cx="122" cy="289" rx="10" ry="16"/>
+  <ellipse class="org${oc('kidL')}" cx="178" cy="289" rx="10" ry="16"/>
+  <path class="org${oc('blood')}" d="M150 306 C156 314 159 319 159 323 A9 9 0 0 1 141 323 C141 319 144 314 150 306 Z"/>
+  <g class="org${oc('gonad')}"><ellipse cx="138" cy="372" rx="7" ry="5"/><ellipse cx="162" cy="372" rx="7" ry="5"/></g>`;
+}
+function bodySVG(a,sc,quiz){
+  const P=POS[a.id], ids=a.nodes.map(n=>n.id), X=sc&&EXT[sc.id];
+  const st=id=>sc?sc.st[id]:'n';
+  const flow=id=>(X&&X.flow&&X.flow[id])||st(id);
+  const on={}; ids.forEach(id=>on[P[id][3]]=st(id));
+  const oc=k=>on[k]?` on s-${on[k]}`:'';
+  PEND=[];
+  let trk='',lab='',extra='';
+  ids.forEach((id,i)=>{
+    if(i===ids.length-1)return;
+    const c=curve(P[id],P[ids[i+1]],1,.28), inh=a.edges[i][0]==='抑制';
+    trk+=`<path class="trk" data-edge="e${i}" d="${c.d}" marker-end="url(#${inh?'bar':'arw'})"/>`;
+    PEND.push({id:'e'+i,key:a.id+':e'+i,color:`var(--c${i})`,target:RATE[flow(id)],dur:1.8,fb:false});
+  });
+  const f=FB[a.id], fc=curve(P[f[0]],P[f[1]],-1,.42);
+  trk+=`<path class="trk fb" data-edge="fb" d="${fc.d}" marker-end="url(#${f[2]==='抑制'?'bar':'arw'})"/>`;
+  lab+=`<text class="fbl" x="${(fc.mid[0]+40).toFixed(0)}" y="${fc.mid[1].toFixed(0)}" text-anchor="middle">${f[3]}が${f[2]}</text>`;
+  PEND.push({id:'fb',key:a.id+':fb',color:`var(--c${ids.indexOf(f[0])})`,target:RATE[(X&&X.fb)||st(f[0])],dur:2.4,fb:true});
+  if(X){
+    const to=P[X.to], ec=curve(X.from,to,1,.2);
+    trk+=`<path class="trk" data-edge="ex" d="${ec.d}" marker-end="url(#arw)"/>`;
+    extra+=X.icon==='pill'?`<rect class="pill-i" x="${X.from[0]-12}" y="${X.from[1]-6}" width="24" height="12" rx="6"/>`:`<path class="tumor-i" d="M${X.from[0]-7} ${X.from[1]} q2 -9 9 -7 q8 1 5 9 q-2 8 -9 6 q-7 -1 -5 -8z"/>`;
+    lab+=`<text class="exl" x="${X.from[0]+40+(X.icon==='pill'?-12:12)}" y="${X.from[1]-12}" text-anchor="${X.icon==='pill'?'start':'start'}">${quiz?'？':X.label}</text>`;
+    PEND.push({id:'ex',key:sc.id+':ex',color:`var(--c${X.c})`,target:RATE.u,dur:1.8,fb:false});
+  }
+  ids.forEach((id,i)=>{
+    const p=P[id], s=st(id), left=p[2]==='l', x=p[0]+40;
+    lab+=`<line class="lead" x1="${x}" y1="${p[1]}" x2="${left?100:280}" y2="${p[1]}"/>`;
+    lab+=`<circle cx="${left?100:280}" cy="${p[1]}" r="3" style="fill:var(--c${i})"/>`;
+    lab+=`<text class="lbl" x="${left?4:376}" y="${p[1]+4}" text-anchor="${left?'start':'end'}">${p[4]} <tspan class="g${s}">${G[s]}</tspan></text>`;
+  });
+  let ring='',hit='';
+  if(!quiz&&sc&&sc.at!=='ext'){const p=P[sc.at];ring=`<circle class="lring" cx="${p[0]}" cy="${p[1]}" r="16"/>`}
+  if(!quiz)ids.forEach(id=>{if(a.scen.some(s=>s.at===id)){const p=P[id];hit+=`<circle class="hit" data-hit="${id}" cx="${p[0]}" cy="${p[1]}" r="17" tabindex="0" role="button" aria-label="${a.nodes.find(n=>n.id===id).organ}に病変を入れる"/>`}});
+  return `<svg class="body" viewBox="0 0 380 424" role="img" aria-label="${a.name}の軸を人体図に重ねた図">
+  <defs><marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" style="fill:var(--muted)"/></marker>
+  <marker id="bar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M5 0V10" style="stroke:var(--muted);stroke-width:2.6"/></marker></defs>
+  <g transform="translate(40 0)">${organs(oc)}${trk}${extra}<g class="pl"></g>${ring}${hit}</g>${lab}</svg>`;
+}
+function gauges(a,sc,quiz){
+  const P=POS[a.id];
+  return `<div class="gauges">`+a.nodes.map((n,i)=>{
+    const s=sc?sc.st[n.id]:'n', cnt=a.scen.filter(x=>x.at===n.id).length, lesion=!quiz&&sc&&sc.at===n.id;
+    const note=(!quiz&&sc&&sc.note&&sc.note[n.id])||'';
+    const key=a.id+':'+n.id, from=ENG.marks[key]??MK[s];
+    let h=`<button class="gauge${lesion?' lesion':''}" data-node="${n.id}" ${quiz||!cnt?'disabled':''} aria-expanded="${S.open===n.id}">
+      <span class="gdot" style="background:var(--c${i})"></span>
+      <span class="gname"><b>${n.hormone}</b><small>${n.organ}${lesion?'・病変':''}</small>${note?`<em>${note}</em>`:''}</span>
+      <span class="meter"><span class="mk s-${s}" data-mk="${key}" data-to="${MK[s]}" style="left:${from}%"></span></span>
+      <span class="gst s-${s}">${G[s]}</span></button>`;
+    if(!quiz&&S.open===n.id){
+      h+=`<div class="menu">`+a.scen.filter(x=>x.at===n.id).map(x=>`<button class="opt" data-scen="${x.id}" aria-pressed="${S.scen===x.id}"><span class="g g-${x.dir}">${G[x.dir]}</span><span>${x.btn} → <b>${x.name}</b></span></button>`).join('')+`</div>`;
+    }
+    return h;
+  }).join('')+`</div>`;
+}
+function placeP(p){
+  const pts=p.e.pts, f=p.t*(pts.length-1), i=Math.min(pts.length-2,Math.floor(f)), r=f-i;
+  p.c.setAttribute('cx',(pts[i][0]+(pts[i+1][0]-pts[i][0])*r).toFixed(1));
+  p.c.setAttribute('cy',(pts[i][1]+(pts[i+1][1]-pts[i][1])*r).toFixed(1));
+  p.c.style.opacity=Math.min(1,p.t*8,(1-p.t)*8).toFixed(2);
+}
+function spawn(e,t){
+  const c=document.createElementNS(NS,'circle');
+  c.setAttribute('r',e.fb?3.2:4.1);
+  if(e.fb){c.style.fill='var(--surface)';c.style.stroke=e.color;c.style.strokeWidth='1.7'}else c.style.fill=e.color;
+  ENG.layer.appendChild(c);const p={e,t,c};placeP(p);ENG.parts.push(p);
+}
+function tick(ts){
+  if(!ENG.layer||!ENG.layer.isConnected){ENG.raf=0;return}
+  const dt=Math.max(0,Math.min(.05,(ts-ENG.last)/1000));ENG.last=ts;
+  for(const e of ENG.edges){
+    e.rate+=(e.target-e.rate)*Math.min(1,dt*1.6);ENG.rates[e.key]=e.rate;
+    e.acc+=e.rate*dt;while(e.acc>=1){e.acc-=1;spawn(e,0)}
+  }
+  ENG.parts=ENG.parts.filter(p=>{p.t+=dt/p.e.dur;if(p.t>=1){p.c.remove();return false}placeP(p);return true});
+  ENG.raf=requestAnimationFrame(tick);
+}
+function mountBody(){
+  $v.querySelectorAll('[data-mk]').forEach(m=>{const to=+m.dataset.to;ENG.marks[m.dataset.mk]=to;requestAnimationFrame(()=>requestAnimationFrame(()=>{m.style.left=to+'%'}))});
+  const svg=$v.querySelector('svg.body');ENG.parts=[];ENG.edges=[];
+  if(!svg){if(ENG.raf)cancelAnimationFrame(ENG.raf);ENG.raf=0;ENG.layer=null;return}
+  ENG.layer=svg.querySelector('.pl');
+  ENG.edges=PEND.map(e=>{const p=svg.querySelector(`[data-edge="${e.id}"]`),L=p.getTotalLength(),pts=[];
+    for(let i=0;i<=64;i++){const q=p.getPointAtLength(L*i/64);pts.push([q.x,q.y])}
+    return {...e,pts,acc:Math.random(),rate:ENG.rates[e.key]??e.target}});
+  for(const e of ENG.edges){
+    const n=RM.matches?Math.round(e.target*e.dur*.8):Math.round(e.rate*e.dur);
+    for(let i=0;i<n;i++)spawn(e,RM.matches?(i+.5)/n:Math.random());
+  }
+  if(RM.matches)return;
+  if(!ENG.raf){ENG.last=performance.now();ENG.raf=requestAnimationFrame(tick)}
+}
+function labPills(labs){
+  if(!labs||!labs.length)return'';
+  return `<div class="labs">`+labs.map(([k,v])=>G[v]?`<span class="pill">${k}<span class="g g-${v}">${G[v]}</span></span>`:`<span class="pill">${k}：${v}</span>`).join('')+`</div>`;
+}
+function resultHTML(sc){
+  if(!sc)return `<section class="result"><p class="empty">正常：すべてのホルモンが基準範囲（→）。左の臓器をタップして病変を選んでください。</p></section>`;
+  let link='';
+  if(sc.link){link=sc.link.seg?`<button class="jump" data-goseg="${sc.link.seg}">尿細管で見る</button>`:`<button class="jump" data-goax="${sc.link.axis}" data-goscen="${sc.link.scen}">${AX.find(a=>a.id===sc.link.axis).name}の軸で見る</button>`}
+  return `<section class="result" aria-live="polite"><span class="lv">${sc.level}</span><h2>${sc.name}</h2>
+  <div class="read"><span class="k">読み方</span>${sc.read}</div>${labPills(sc.labs)}
+  <dl><div><dt>機序</dt><dd>${sc.mech}</dd></div>
+  <div><dt>症状・所見</dt><dd><ul>${sc.sx.map(x=>`<li>${x}</li>`).join('')}</ul></dd></div>
+  <div><dt>検査</dt><dd><ul>${sc.dx.map(x=>`<li>${x}</li>`).join('')}</ul></dd></div>
+  <div><dt>治療</dt><dd>${sc.tx}</dd></div>
+  <div><dt>国試ポイント</dt><dd class="pearl">${sc.pearl}</dd></div></dl>${link}</section>`;
+}
+function axisView(){
+  const a=ax(), sc=a.scen.find(s=>s.id===S.scen)||null, ext=a.scen.filter(s=>s.at==='ext');
+  const chips=`<div class="chips">`+AX.map(x=>`<button class="chip" data-axis="${x.id}" aria-pressed="${x.id===S.axis}">${x.name}</button>`).join('')+`</div>`;
+  const left=`<div><p class="loop">${a.loop}</p><div class="figwrap">${bodySVG(a,sc,false)}</div>
+  <p class="hint">粒の多さ＝分泌量。塗りつぶしの粒は下流への指令、白抜きの粒は点線を戻るフィードバック。臓器かメーターをタップすると病変を入れられます。</p>
+  ${gauges(a,sc,false)}
+  ${ext.length?`<div class="ext"><h3>外因・異所性・他軸から</h3><div class="chips">${ext.map(s=>`<button class="chip" data-scen="${s.id}" aria-pressed="${S.scen===s.id}">${s.btn}</button>`).join('')}</div></div>`:''}
+  <button class="reset" data-reset="1">正常に戻す</button>
+  <div class="rule"><b>読み方の原則</b>　指令ホルモンと末梢ホルモンが<b>逆向き</b>なら末梢側が原因（原発性）。<b>同じ向き</b>なら指令側から上流が原因（続発性）。両方とも抑制されているのに作用だけ強いなら、外因か受容体より下流の異常。</div></div>`;
+  return chips+`<div class="grid">${left}${resultHTML(sc)}</div>`;
+}
+function nephSVG(){
+  const on=id=>S.seg===id||(id==='cd'&&(S.seg==='cdp'||S.seg==='cda'));
+  const c=id=>on(id)?' on':'';
+  return `<div class="neph"><svg viewBox="0 0 340 270" role="img" aria-label="ネフロンの模式図">
+  <line class="zone" x1="0" y1="118" x2="340" y2="118"/><text class="svgt" x="4" y="112">皮質</text><text class="svgt" x="4" y="132">髄質</text>
+  <circle class="glom" cx="38" cy="42" r="18"/><text class="svgt" x="20" y="76">糸球体</text>
+  <path class="seg${c('pt')}" data-seg="pt" d="M56 42 C78 18 92 64 112 40 S140 22 150 52 L150 100"/>
+  <path class="thin" d="M150 104 L150 222 Q160 244 170 222"/>
+  <path class="seg${c('tal')}" data-seg="tal" d="M170 218 L170 100"/>
+  <path class="seg${c('dct')}" data-seg="dct" d="M170 96 C174 70 200 86 206 60 S232 40 252 52"/>
+  <path class="seg${c('cd')}" data-seg="cdp" d="M256 52 L292 52 L292 255"/>
+  <text class="svgt${c('pt')}" x="78" y="74">近位尿細管</text>
+  <text class="svgt${c('tal')}" x="178" y="170">上行脚（太）</text>
+  <text class="svgt${c('dct')}" x="196" y="96">遠位曲</text>
+  <text class="svgt${c('cd')}" x="300" y="150" style="writing-mode:vertical-rl">集合管</text>
+  <text class="svgt" x="108" y="240">細い部</text>
+  </svg></div>`;
+}
+function cmpHTML(){
+  const rows=SEG.flatMap(s=>s.scen.filter(x=>x.id!=='sglt'&&x.id!=='ndi'&&x.id!=='fan').map(x=>({...x,seg:s.name})));
+  return `<div class="cmpwrap"><table class="cmp"><thead><tr><th>病態・薬</th>${TK.map(k=>`<th>${k[1]}</th>`).join('')}</tr></thead><tbody>`+
+  rows.map(r=>`<tr><td>${r.name.replace(/（.*?）/,'')}</td>${TK.map(k=>{const t=TV[r.v[k[0]]];return `<td class="tv-${t[1]}">${t[0]}</td>`}).join('')}</tr>`).join('')+`</tbody></table></div>`;
+}
+function tubView(){
+  const seg=SEG.find(s=>s.id===S.seg), sc=seg.scen.find(x=>x.id===S.tscen)||seg.scen[0];
+  const chips=`<div class="chips">`+SEG.map(s=>`<button class="chip" data-seg="${s.id}" aria-pressed="${s.id===S.seg}">${s.name}</button>`).join('')+`</div>`;
+  const info=`<div class="seginfo"><h2>${seg.name}</h2><div class="share">${seg.share}</div>
+   <p class="sec-h" style="margin-top:10px">輸送体</p><ul>${seg.trans.map(t=>`<li>${t}</li>`).join('')}</ul>
+   <p class="sec-h">ホルモンの作用点</p><ul>${seg.horm.map(t=>`<li>${t}</li>`).join('')}</ul></div>`;
+  const opts=`<p class="sec-h" style="margin-top:14px">ここを止める・壊す・強めると</p><div class="menu" style="padding-left:0">`+seg.scen.map(x=>`<button class="opt" data-tscen="${x.id}" aria-pressed="${x.id===sc.id}"><span class="g">${x.kind==='薬'?'薬':'病'}</span><span><b>${x.name}</b></span></button>`).join('')+`</div>`;
+  let link='';if(sc.link)link=`<button class="jump" data-goax="${sc.link.axis}" data-goscen="${sc.link.scen}">${AX.find(a=>a.id===sc.link.axis).name}の軸で見る</button>`;
+  const res=`<section class="result" aria-live="polite"><span class="lv">${seg.name}・${sc.kind==='薬'?'薬剤':'病態'}</span><h2>${sc.name}</h2>
+   <table class="tlab"><tbody>${TK.map(k=>{const t=TV[sc.v[k[0]]];return `<tr><td>${k[1]}</td><td class="tv-${t[1]}">${t[0]}</td></tr>`}).join('')}</tbody></table>
+   <dl><div><dt>機序</dt><dd>${sc.mech}</dd></div><div><dt>特徴</dt><dd>${sc.note}</dd></div><div><dt>国試ポイント</dt><dd class="pearl">${sc.pearl}</dd></div></dl>${link}</section>`;
+  return chips+`<div class="grid"><div>${nephSVG()}${info}${opts}</div><div>${res}
+   <button class="jump" data-cmp="1">${S.cmp?'比較表を閉じる':'全体の比較表を開く'}</button>${S.cmp?cmpHTML():''}
+   <p class="loop" style="margin-top:10px">「－」はこの表では特記事項なし。代アシ＝代謝性アシドーシス、代アル＝代謝性アルカローシス。</p></div></div>`;
+}
+function newQ(){
+  const all=allScen(), c=all[Math.floor(Math.random()*all.length)];
+  const pool=c.ax.scen.filter(s=>s.id!==c.id&&s.name!==c.name);
+  const others=all.filter(s=>s.ax.id!==c.ax.id);
+  const pick=[];const p=[...pool].sort(()=>Math.random()-.5);
+  while(pick.length<3&&p.length)pick.push(p.pop());
+  const o=[...others].sort(()=>Math.random()-.5);
+  while(pick.length<3)pick.push(o.pop());
+  S.q={c,opts:[c,...pick].sort(()=>Math.random()-.5),ans:null};
+}
+function quizView(){
+  if(!S.q)newQ();
+  const q=S.q;
+  const opts=q.opts.map(o=>{let cl='';if(q.ans){if(o.id===q.c.id)cl=' ok';else if(o.id===q.ans)cl=' ng'}
+    return `<button class="qopt${cl}" data-ans="${o.id}" ${q.ans?'disabled':''}>${o.name}</button>`}).join('');
+  const after=q.ans?`<div class="read" style="margin-top:12px"><span class="k">${q.ans===q.c.id?'正解':'不正解'}：${q.c.name}</span>${q.c.read}</div>
+    <button class="jump" data-goax="${q.c.ax.id}" data-goscen="${q.c.id}">シミュレーターで開く</button> <button class="next" data-next="1">次の問題</button>`:'';
+  return `<div class="grid"><div><p class="loop">${q.c.ax.name}の軸。粒の流れと検査から、病態を当ててください。</p><div class="figwrap">${bodySVG(q.c.ax,q.c,true)}</div>${gauges(q.c.ax,q.c,true)}<div style="margin-top:10px">${labPills(q.c.labs)}</div></div>
+  <section class="result"><span class="qscore">${S.score[0]} / ${S.score[1]} 正解</span><h2>この動きになる病態は？</h2><div class="qopts">${opts}</div>${after}</section></div>`;
+}
+function render(){
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===S.tab));
+  $v.innerHTML=S.tab==='axis'?axisView():S.tab==='tub'?tubView():quizView();
+  S.fresh=false;save();mountBody();
+}
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;S.tab=b.dataset.tab;S.fresh=true;render();window.scrollTo(0,0)});
+$v.addEventListener('click',e=>{
+  const t=e.target.closest('button');if(!t)return;const d=t.dataset;
+  if(d.axis){S.axis=d.axis;S.scen=null;S.open=null;S.fresh=true}
+  else if(d.node){S.open=S.open===d.node?null:d.node}
+  else if(d.scen){S.scen=d.scen;S.fresh=true}
+  else if(d.reset){S.scen=null;S.open=null}
+  else if(d.seg){S.seg=d.seg;S.tscen=SEG.find(s=>s.id===d.seg).scen[0].id}
+  else if(d.tscen){S.tscen=d.tscen}
+  else if(d.cmp){S.cmp=!S.cmp}
+  else if(d.goseg){S.tab='tub';S.seg=d.goseg;S.tscen=SEG.find(s=>s.id===d.goseg).scen[0].id;window.scrollTo(0,0)}
+  else if(d.goax){S.tab='axis';S.axis=d.goax;S.scen=d.goscen;const sc=ax().scen.find(s=>s.id===d.goscen);S.open=sc&&sc.at!=='ext'?sc.at:null;S.fresh=true;window.scrollTo(0,0)}
+  else if(d.ans){S.q.ans=d.ans;S.score[1]++;if(d.ans===S.q.c.id)S.score[0]++}
+  else if(d.next){newQ()}
+  else return;
+  render();
+});
+$v.addEventListener('click',e=>{const p=e.target.closest('path[data-seg]');if(!p)return;S.seg=p.dataset.seg;S.tscen=SEG.find(s=>s.id===S.seg).scen[0].id;render()});
+function hitNode(id){S.open=S.open===id?null:id;render();const g=$v.querySelector(`.gauge[data-node="${id}"]`);if(g&&S.open)g.scrollIntoView({block:'nearest',behavior:'smooth'})}
+$v.addEventListener('click',e=>{const h=e.target.closest('[data-hit]');if(h)hitNode(h.dataset.hit)});
+$v.addEventListener('keydown',e=>{const h=e.target.closest('[data-hit]');if(h&&(e.key==='Enter'||e.key===' ')){e.preventDefault();hitNode(h.dataset.hit)}});
+render();
+</script>
+</body>
+</html>
