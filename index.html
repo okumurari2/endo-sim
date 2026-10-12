@@ -11,7 +11,7 @@
 :root{
   --bg:#EEF2F0; --surface:#FFFFFF; --ink:#18221F; --muted:#56635F; --line:#C6D0CC;
   --accent:#2C5E52; --accent-soft:#DCE9E4; --hi:#B5412C; --hi-soft:#F6E1DB; --lo:#1F5E9E; --lo-soft:#DCE8F5; --flat:#7C8A86;
-  --skin:#E6EDEA; --org:#D6DFDB; --orgline:#B2C0BB;
+  --skin:#E6EDEA; --org:#D6DFDB; --orgline:#B2C0BB; --urine-lo:#EFE3A0; --urine-mid:#D9BC4A; --urine-hi:#A8740A;
   --c0:#13867A; --c1:#C27C0E; --c2:#7048B5; --c3:#C23D6E;
   --f-disp:"Shippori Mincho B1","Hiragino Mincho ProN","Yu Mincho",serif;
   --f-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
@@ -20,11 +20,11 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#111816; --surface:#19221F; --ink:#E4ECE9; --muted:#9AA9A4; --line:#2E3B37;
   --accent:#86C2AE; --accent-soft:#1F332C; --hi:#F29178; --hi-soft:#3A2420; --lo:#86B8EE; --lo-soft:#1C2A3B; --flat:#8A9894;
-  --skin:#1F2926; --org:#2A3632; --orgline:#43534E; --c0:#4FC9B8; --c1:#E9A93B; --c2:#A88BEA; --c3:#EE7FA4; color-scheme:dark}}
+  --skin:#1F2926; --org:#2A3632; --orgline:#43534E; --urine-lo:#5B5228; --urine-mid:#A8923A; --urine-hi:#EDC24C; --c0:#4FC9B8; --c1:#E9A93B; --c2:#A88BEA; --c3:#EE7FA4; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#111816; --surface:#19221F; --ink:#E4ECE9; --muted:#9AA9A4; --line:#2E3B37;
   --accent:#86C2AE; --accent-soft:#1F332C; --hi:#F29178; --hi-soft:#3A2420; --lo:#86B8EE; --lo-soft:#1C2A3B; --flat:#8A9894;
-  --skin:#1F2926; --org:#2A3632; --orgline:#43534E; --c0:#4FC9B8; --c1:#E9A93B; --c2:#A88BEA; --c3:#EE7FA4; color-scheme:dark}
+  --skin:#1F2926; --org:#2A3632; --orgline:#43534E; --urine-lo:#5B5228; --urine-mid:#A8923A; --urine-hi:#EDC24C; --c0:#4FC9B8; --c1:#E9A93B; --c2:#A88BEA; --c3:#EE7FA4; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.7}
 .wrap{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:18px 48px}
@@ -108,6 +108,38 @@ svg.body{width:100%;height:auto;display:block;max-height:72vh}
 .pill-i{fill:var(--surface);stroke:var(--ink);stroke-width:1.2}
 .tumor-i{fill:var(--hi-soft);stroke:var(--hi);stroke-width:1.4}
 .exl{font-size:10px;fill:var(--ink);font-weight:700;font-family:var(--f-body)}
+.aorta{transition:stroke-width .5s,stroke .5s,opacity .5s}
+.aorta.v-u{stroke:var(--hi);stroke-width:6;opacity:.75}
+.aorta.v-d{stroke:var(--lo);stroke-width:1.6;opacity:.8}
+.pipe{fill:none;stroke-linecap:round;stroke-linejoin:round;transition:stroke-width .5s,opacity .5s}
+.pipe.aux{stroke-dasharray:1 0}
+.gutl{fill:none;stroke:var(--orgline);stroke-width:1.1}
+.plb{font-family:var(--f-body);font-size:11px;font-weight:700;fill:var(--ink)}
+.plb.q{fill:var(--muted);font-weight:500}
+.plb .gu{fill:var(--hi)} .plb .gd{fill:var(--lo)}
+.vsub{font-size:9px;font-weight:500;fill:var(--muted)} .vsub.on{fill:var(--accent);font-weight:700}
+.vt{font-family:var(--f-body);font-size:8.5px;font-weight:700;fill:var(--ink);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
+.vt.q{fill:var(--muted);font-weight:500}
+.valve{fill:var(--surface);stroke:var(--flat);stroke-width:1.4}
+.valve.o{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.8}
+.valve.c{fill:var(--ink);stroke:var(--ink)}
+.valve.fx{stroke-dasharray:2 1.6}
+.vlock{fill:none;stroke:var(--hi);stroke-width:1.3;stroke-dasharray:2 2}
+.L1,.L2,.L3{transition:opacity .45s}
+.grid[data-st="1"] .L2,.grid[data-st="1"] .L3,.grid[data-st="2"] .L3{opacity:.08}
+.grid[data-st="1"] .labs,.grid[data-st="2"] .labs,.grid[data-st="3"] .labs{opacity:.25}
+.grid[data-st="4"] .labs{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+.stbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 8px}
+.stbtn{font:inherit;font-weight:700;font-size:.82rem;background:var(--accent);color:var(--surface);border:0;border-radius:8px;padding:.4rem .9rem;cursor:pointer}
+.stdots{display:flex;gap:5px;align-items:center;font-size:.72rem;color:var(--muted)}
+.stdots i{width:8px;height:8px;border-radius:50%;background:var(--line);display:inline-block}
+.stdots i.on{background:var(--accent)}
+.stcap{flex-basis:100%;font-size:.84rem;line-height:1.6;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:.5rem .7rem}
+.stcap b{font-family:var(--f-disp)}
+.side{font-size:.86rem;line-height:1.65;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c1);border-radius:8px;padding:.5rem .7rem;margin:0 0 10px}
+.side .k{display:block;font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.06em}
+.outs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px;font-size:.78rem;color:var(--muted)}
+.outs .jump{margin:0}
 .hint{font-size:.78rem;color:var(--muted);margin:0 0 10px;line-height:1.55}
 .gauges{display:flex;flex-direction:column;gap:6px}
 .gauge{display:grid;grid-template-columns:10px minmax(0,1fr) 92px 28px;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer}
@@ -122,7 +154,7 @@ svg.body{width:100%;height:auto;display:block;max-height:72vh}
 .mk.s-u{background:var(--hi)} .mk.s-d{background:var(--lo)} .mk.s-n{background:var(--flat)}
 .gst{font-family:var(--f-mono);font-size:1.3rem;text-align:center}
 .gst.s-u{color:var(--hi)} .gst.s-d{color:var(--lo)} .gst.s-n{color:var(--flat)}
-@media (prefers-reduced-motion:reduce){.org.on.s-u,.lring{animation:none}.mk{transition:none}}
+@media (prefers-reduced-motion:reduce){.org.on.s-u,.lring{animation:none}.mk{transition:none}.pipe,.aorta,.L1,.L2,.L3{transition:none}}
 /* tubule */
 .neph{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px}
 .neph svg{width:100%;height:auto;display:block}
@@ -507,7 +539,7 @@ const SEG=[
 
 const G={u:'↑',d:'↓',n:'→'};
 const TV={u:['↑','u'],d:['↓','d'],n:['→','n'],A:['代アシ','A'],L:['代アル','L'],x:['－','x']};
-const S={tab:'axis',axis:'hpa',scen:'hpa-adr',open:null,seg:'tal',tscen:'loop',cmp:false,fresh:true,q:null,score:[0,0]};
+const S={tab:'axis',axis:'hpa',scen:'hpa-adr',st:0,open:null,seg:'tal',tscen:'loop',cmp:false,fresh:true,q:null,score:[0,0]};
 try{const s=JSON.parse(localStorage.getItem('endo-sim')||'{}');if(s.tab)S.tab=s.tab;if(s.axis&&AX.some(a=>a.id===s.axis)){S.axis=s.axis;S.scen=AX.find(a=>a.id===s.axis).scen[0].id}}catch(e){}
 function save(){try{localStorage.setItem('endo-sim',JSON.stringify({tab:S.tab,axis:S.axis}))}catch(e){}}
 
@@ -536,7 +568,76 @@ const EXT={
 'gon-aas':{from:[-18,330],icon:'pill',to:'g',c:2,label:'アンドロゲン',fb:'u'},
 'pth-hhm':{from:[186,172],icon:'tumor',to:'c',c:0,label:'癌 → PTHrP'}
 };
+
+/* 脇道（物質の収支）: 臓器⇄血管の配管。d=体座標の経路、lp=ラベル位置[x,y,側]、v=弁[x,y,ホルモン名,側]、c=粒の色(--cN)、aux=補助 */
+const FLOW={
+pth:{organs:['gut','bone','blad'],pipes:[
+ {id:'gut',lbl:'腸管Ca吸収',c:1,d:'M127 350 Q140 348 145 329',lp:[113,352,'l'],v:[135,343,'1,25D','l']},
+ {id:'bone',lbl:'骨吸収',c:1,d:'M180 388 Q176 358 157 331',lp:[184,396,'r'],v:[172,362,'PTH','r']},
+ {id:'uca',lbl:'尿中Ca',c:1,d:'M144 326 Q126 325 124 305 Q124 352 144 391 L148 424',lp:[142,388,'l'],v:[131,316,'PTH','l']},
+ {id:'up',lbl:'尿中P',c:2,aux:1,d:'M146 330 Q131 328 128 307 Q129 352 148 391 L153 424',lp:[152,416,'l'],v:[133,330,'PTH','r']}]},
+raa:{organs:['blad','tissue'],pipes:[
+ {id:'nar',lbl:'Na・水の再吸収',c:0,d:'M184 300 Q190 324 159 326',lp:[190,328,'r'],v:[186,314,'ENaC','r']},
+ {id:'kex',lbl:'K⁺・H⁺の排泄',c:3,d:'M158 321 Q172 320 176 306 Q176 350 156 391 L152 424',lp:[160,408,'r']},
+ {id:'leak',lbl:'血管外へ（浮腫）',c:0,aux:1,d:'M147 338 Q126 366 116 398',lp:[112,412,'l']}],
+ vessel:{lbl:'循環血漿量',lp:[152,228,'r']}},
+adh:{organs:['blad','cup'],pipes:[
+ {id:'drink',lbl:'飲水',c:0,d:'M203 80 Q172 82 148 92 L146 200 Q146 260 150 306',lp:[208,72,'r']},
+ {id:'wr',lbl:'戻る水の量',c:0,d:'M184 300 Q190 324 159 326',lp:[190,328,'r'],v:[186,314,'ADH','r']},
+ {id:'uo',lbl:'尿',c:'u',d:'M158 321 Q172 320 176 306 Q176 350 156 391 L152 424',lp:[160,408,'r']}]}
+};
+/* 病態ごとの脇道。fl=配管の量(u/d、省略=n)、vv=弁(o開/c閉/O固着開/C固着閉)、vt=弁の名前の上書き、bv=血管の太さ、uc=尿の濃さ、cause=原因を示す配管、sd=脇道の読み方、out=つながる先 */
+const FLX={
+'pth-p':{fl:{gut:'u',bone:'u',uca:'u',up:'u'},vv:{gut:'o',bone:'o',uca:'o',up:'o'},
+ sd:'腸・骨・腎のどこでも「血中に入る量」が増え、PTH↑の弁は開いたまま。濾過されるCaが多いので、再吸収が増えても尿中Caは↑。Pは排泄が増えて血清P↓。',
+ out:[{axis:'adh',scen:'adh-ndi',label:'高Ca → 腎性尿崩症'}]},
+'pth-hypo':{fl:{gut:'d',bone:'d',uca:'n',up:'d'},vv:{gut:'c',bone:'c',uca:'c',up:'c'},
+ sd:'PTH↓で骨吸収が細くなり、1,25D↓で腸管吸収も細くなる。腎のCa再吸収の弁も閉じ気味で、Pは排泄されず血清P↑。'},
+'pth-pseudo':{fl:{gut:'d',bone:'d',uca:'d',up:'d'},vv:{gut:'c',up:'C'},
+ sd:'PTHは高値でも、近位尿細管の弁が固着して閉じたまま。P排泄が増えず血清P↑。PTH↑・Ca↓・P↑が揃う（遠位のCa再吸収は保たれる）。'},
+'pth-ckd':{fl:{gut:'d',bone:'u',up:'d'},vv:{gut:'c',bone:'o',up:'o'},
+ sd:'腎での1α水酸化↓で腸管吸収が細くなりCa↓。P排泄も減ってP↑。低CaとP↑がPTHを押し上げ、骨吸収が増える（弁は開いているのにP排泄は増えない）。'},
+'pth-vitd':{fl:{gut:'d',bone:'u',uca:'d',up:'u'},vv:{gut:'c',bone:'o',uca:'o',up:'o'},
+ sd:'腸管吸収が細くなりCa↓。PTH↑で骨吸収が増え、血清Caは低〜正常に保たれる。PTH↑でP排泄が増えて血清P↓ → 骨の石灰化不全。'},
+'pth-sarc':{fl:{gut:'u',uca:'u'},vv:{gut:'O',bone:'c',uca:'c'},
+ sd:'肉芽腫が1α水酸化を調節なしに続け、腸管吸収が増え続ける。高CaでPTHは抑制され、尿中Ca↑。'},
+'pth-hhm':{fl:{gut:'d',bone:'u',uca:'u',up:'u'},vv:{gut:'c',bone:'o',uca:'o',up:'o'},vt:{bone:'PTHrP',uca:'PTHrP',up:'PTHrP'},
+ sd:'PTHrPはPTHと同じ受容体に作用し、骨吸収↑・腎のCa再吸収↑・P排泄↑。ただし1,25Dは上がらず、腸管吸収は細いまま（原発性HPTとの違い）。',
+ out:[{axis:'adh',scen:'adh-ndi',label:'高Ca → 腎性尿崩症'}]},
+'raa-pa':{fl:{nar:'u',kex:'u'},vv:{nar:'o'},bv:'u',
+ sd:'アルドステロン過剰で弁が開き続け、Na・水の再吸収↑で循環血漿量↑。引き換えにK⁺・H⁺が排泄されて低K・代謝性アルカローシス。レニンは量負荷で抑制される。'},
+'raa-rvh':{fl:{nar:'u',kex:'u'},vv:{nar:'o'},
+ sd:'腎血流の低下がレニンを上げ、アルドステロンで弁が開く。Na再吸収↑・K排泄↑。レニン・アルドとも高値（原発性アルドステロン症との違い）。'},
+'raa-eff':{fl:{nar:'u',leak:'u'},vv:{nar:'o'},bv:'d',
+ sd:'有効循環血漿量が低下したとみなされてRAAが働き、Na・水の再吸収が増える。しかし血管外へ漏れて浮腫になるだけで、血管内は満たされない。'},
+'raa-add':{fl:{nar:'d',kex:'d'},vv:{nar:'c'},bv:'d',
+ sd:'アルドステロン↓で弁が閉じ、Na・水が尿へ失われて循環血漿量↓・低血圧。K⁺・H⁺は排泄されず高K・代謝性アシドーシス。',
+ out:[{axis:'hpa',scen:'hpa-add',label:'副腎皮質の軸（コルチゾール）'}]},
+'raa-cah':{fl:{nar:'d',kex:'d'},vv:{nar:'c'},bv:'d',
+ sd:'21-水酸化酵素欠損でアルドステロンが作れない（塩類喪失型）。弁が閉じ、Na喪失・K貯留。'},
+'raa-hrha':{fl:{kex:'d'},vv:{nar:'c'},
+ sd:'レニンが出ずアルドステロンが低いため弁が閉じる。血管内容量は大きく崩れず、K⁺・H⁺の排泄だけが落ちて高K・代謝性アシドーシス。'},
+'raa-lic':{fl:{nar:'u',kex:'u'},vv:{nar:'O'},bv:'u',vt:{nar:'MR'},
+ sd:'甘草のグリチルリチンが11β-HSD2を阻害し、コルチゾールがMRを刺激する。弁がアルドステロンと無関係に開きっぱなしになり、Na再吸収↑・K排泄↑。レニン・アルドは低値。'},
+'raa-lid':{fl:{nar:'u',kex:'u'},vv:{nar:'O'},bv:'u',
+ sd:'ENaCが恒常的に開く。弁がアルドステロンの指令と無関係に開きっぱなしになり、Na再吸収↑・K排泄↑。レニン・アルドは低値。'},
+'raa-pha':{fl:{nar:'d',kex:'d'},vv:{nar:'C'},bv:'d',
+ sd:'MR/ENaCの機能喪失で弁が固着して閉じる。アルドステロンが高くても効かず、Na喪失とK貯留。'},
+'adh-siadh':{fl:{wr:'u',uo:'d'},vv:{wr:'o'},uc:'u',
+ sd:'ADHが不適切に出続けて弁が開き、水の再吸収が増える。尿量↓・濃縮尿で、水が体に溜まって希釈され低Na。体液量は正常に近い。'},
+'adh-cdi':{fl:{drink:'u',wr:'d',uo:'u'},vv:{wr:'c'},uc:'d',
+ sd:'ADHが出ないので弁が閉じ、水が再吸収されず薄い大量の尿。飲水で補えなければ高Na。'},
+'adh-ndi':{fl:{drink:'u',wr:'d',uo:'u'},vv:{wr:'C'},uc:'d',
+ sd:'ADHは高値でも弁が固着して閉じたまま（V2/AQP2の異常）。薄い大量の尿で、デスモプレシンが効かない。',
+ out:[{axis:'pth',scen:'pth-p',label:'原因の一つ：高Ca血症（Ca・PTH軸）'}]},
+'adh-pp':{fl:{drink:'u',wr:'d',uo:'u'},vv:{wr:'c'},uc:'d',cause:'drink',
+ sd:'ADHは適切に抑制されて弁が閉じ、飲み過ぎた水を薄い尿で出している。原因はADH系ではなく飲水そのもの。'}
+};
+AX.forEach(a=>a.scen.forEach(sc=>Object.assign(sc,FLX[sc.id]||{})));
 const RATE={u:9,n:3,d:.6};
+const FW={u:7,n:3.4,d:1.8}, FR={u:7,n:2.2,d:.5};
+const UC={u:'hi',n:'mid',d:'lo'};
+const VW={o:'開',c:'閉',O:'固着開',C:'固着閉'};
 const MK={u:84,n:50,d:16};
 const ENG={raf:0,edges:[],parts:[],rates:{},marks:{},layer:null,last:0};
 const RM=matchMedia('(prefers-reduced-motion: reduce)');
@@ -550,7 +651,7 @@ function curve(p,q,sign,k){
   const s=trim(p,[cx,cy],9), e=trim(q,[cx,cy],11);
   return {d:`M${s[0].toFixed(1)} ${s[1].toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${e[0].toFixed(1)} ${e[1].toFixed(1)}`,mid:[(s[0]+2*cx+e[0])/4,(s[1]+2*cy+e[1])/4]};
 }
-function organs(oc){
+function organs(oc,vc=''){
   return `<path class="sil" d="M150 114 C122 114 96 117 84 131 C74 143 70 170 66 210 L58 300 Q56 316 66 318 Q74 318 76 304 L86 214 L92 182 C92 232 94 282 98 330 C100 370 104 400 108 420 L192 420 C196 400 200 370 202 330 C206 282 208 232 208 182 L214 214 L224 304 Q226 318 234 318 Q244 316 242 300 L234 210 C230 170 226 143 216 131 C204 117 178 114 150 114 Z"/>
   <rect class="sil" x="136" y="94" width="28" height="26" rx="7"/>
   <ellipse class="sil" cx="150" cy="56" rx="36" ry="43"/>
@@ -561,7 +662,7 @@ function organs(oc){
   <ellipse class="org${oc('lungR')}" cx="122" cy="182" rx="20" ry="34"/>
   <ellipse class="org${oc('lungL')}" cx="178" cy="182" rx="20" ry="34"/>
   <ellipse class="org" cx="158" cy="200" rx="13" ry="11"/>
-  <path class="aorta" d="M152 206 L152 340 M152 340 L138 368 M152 340 L166 368"/>
+  <path class="aorta${vc}" d="M152 206 L152 340 M152 340 L138 368 M152 340 L166 368"/>
   <path class="org${oc('liver')}" d="M98 222 Q130 210 162 222 Q150 247 112 251 Q98 244 98 222 Z"/>
   <path class="org${oc('adrR')}" d="M113 270 L122 256 L131 270 Z"/>
   <path class="org${oc('adrL')}" d="M169 270 L178 256 L187 270 Z"/>
@@ -570,12 +671,52 @@ function organs(oc){
   <path class="org${oc('blood')}" d="M150 306 C156 314 159 319 159 323 A9 9 0 0 1 141 323 C141 319 144 314 150 306 Z"/>
   <g class="org${oc('gonad')}"><ellipse cx="138" cy="372" rx="7" ry="5"/><ellipse cx="162" cy="372" rx="7" ry="5"/></g>`;
 }
+
+function flowOrgans(a,sc){
+  const F=FLOW[a.id]; if(!F)return '';
+  const f=(sc&&sc.fl)||{}, st=id=>' on s-'+(f[id]||'n');
+  const o={
+   gut:`<g class="org${st('gut')}"><rect x="99" y="338" width="28" height="22" rx="9"/></g><path class="gutl" d="M104 346 Q109 341 114 346 Q119 351 124 346 M104 354 Q109 349 114 354 Q119 359 124 354"/>`,
+   bone:`<g class="org${st('bone')}" transform="rotate(20 182 402)"><rect x="178" y="388" width="9" height="30" rx="3"/><circle cx="179.5" cy="388" r="5"/><circle cx="185.5" cy="388" r="5"/><circle cx="179.5" cy="418" r="5"/><circle cx="185.5" cy="418" r="5"/></g>`,
+   blad:`<path class="org on s-n" style="${sc&&sc.uc?`fill:var(--urine-${UC[sc.uc]});stroke:var(--urine-hi)`:''}" d="M138 393 Q150 383 162 393 Q165 409 150 409 Q135 409 138 393Z"/>`,
+   cup:`<path class="org${st('drink')}" d="M200 68 L218 68 L215 92 L203 92 Z"/><path class="gutl" d="M218 74 Q226 74 226 81 Q226 87 216 87"/>`,
+   tissue:`<g class="org${st('leak')}">`+[[108,402],[119,408],[110,415]].map(([x,y])=>`<path d="M${x} ${y-5} C${x+3} ${y-1} ${x+4} ${y+1} ${x+4} ${y+2} A4 4 0 0 1 ${x-4} ${y+2} C${x-4} ${y+1} ${x-3} ${y-1} ${x} ${y-5}Z"/>`).join('')+`</g>`
+  };
+  return F.organs.map(k=>o[k]).join('');
+}
+function flowLayer(a,sc){
+  const F=FLOW[a.id]; if(!F)return null;
+  const f=(sc&&sc.fl)||{}, vv=(sc&&sc.vv)||{}, vt=(sc&&sc.vt)||{};
+  let paths='',valves='',lab='';
+  const ucol=`var(--urine-${UC[(sc&&sc.uc)||'n']})`;
+  F.pipes.forEach(p=>{
+    const s=f[p.id]||'n', col=p.c==='u'?ucol:`var(--c${p.c})`;
+    p.col=col;
+    paths+=`<path class="pipe${p.aux?' aux':''}" data-edge="f_${p.id}" d="${p.d}" style="stroke:${col};stroke-width:${p.aux?FW[s]*.7:FW[s]};opacity:${s==='n'?.2:.34}"/>`;
+    if(p.v){
+      const [x,y,tag,side]=p.v, w=vv[p.id], t=(vt&&vt[p.id])||tag, fx=w==='O'||w==='C';
+      const cls=w==='o'||w==='O'?' o':w==='c'||w==='C'?' c':'';
+      valves+=`<g>${fx?`<circle class="vlock" cx="${x}" cy="${y}" r="8"/>`:''}<circle class="valve${cls}${fx?' fx':''}" cx="${x}" cy="${y}" r="5.4"/></g>`;
+      p.vsub=`弁（${t}）${w?'：'+VW[w]:''}`;p.vw=w;
+    }
+    const [lx,ly,side]=p.lp, left=side==='l', ax_=p.v?p.v[0]:lx;
+    lab+=`<line class="lead" x1="${lx+40}" y1="${ly}" x2="${left?100:280}" y2="${ly}"/><circle cx="${left?100:280}" cy="${ly}" r="2.6" style="fill:${col}"/>`;
+    lab+=`<text class="plb${s==='n'?' q':''}" x="${left?4:376}" y="${ly+4}" text-anchor="${left?'start':'end'}">${p.lbl}${s!=='n'?` <tspan class="g${s}">${G[s]}</tspan>`:''}${p.vsub?`<tspan class="vsub${p.vw?' on':''}" x="${left?4:376}" dy="11">${p.vsub}</tspan>`:''}</text>`;
+  });
+  if(F.vessel){
+    const s=(sc&&sc.bv)||'n', [lx,ly]=F.vessel.lp;
+    lab+=`<line class="lead" x1="${lx+40}" y1="${ly}" x2="280" y2="${ly}"/><circle cx="280" cy="${ly}" r="2.6" style="fill:var(--ink)"/>`;
+    lab+=`<text class="plb${s==='n'?' q':''}" x="376" y="${ly+4}" text-anchor="end">${F.vessel.lbl}${s!=='n'?` <tspan class="g${s}">${G[s]}</tspan>`:''}</text>`;
+  }
+  return {paths,valves,lab};
+}
 function bodySVG(a,sc,quiz){
   const P=POS[a.id], ids=a.nodes.map(n=>n.id), X=sc&&EXT[sc.id];
   const st=id=>sc?sc.st[id]:'n';
   const flow=id=>(X&&X.flow&&X.flow[id])||st(id);
   const on={}; ids.forEach(id=>on[P[id][3]]=st(id));
   const oc=k=>on[k]?` on s-${on[k]}`:'';
+  const FX=quiz?null:flowLayer(a,sc), bvc=FX&&sc&&sc.bv&&sc.bv!=='n'?' v-'+sc.bv:'';
   PEND=[];
   let trk='',lab='',extra='';
   ids.forEach((id,i)=>{
@@ -595,6 +736,7 @@ function bodySVG(a,sc,quiz){
     lab+=`<text class="exl" x="${X.from[0]+40+(X.icon==='pill'?-12:12)}" y="${X.from[1]-12}" text-anchor="${X.icon==='pill'?'start':'start'}">${quiz?'？':X.label}</text>`;
     PEND.push({id:'ex',key:sc.id+':ex',color:`var(--c${X.c})`,target:RATE.u,dur:1.8,fb:false});
   }
+  if(FX)FLOW[a.id].pipes.forEach(p=>{const s=(sc&&sc.fl&&sc.fl[p.id])||'n';PEND.push({id:'f_'+p.id,key:a.id+':f_'+p.id,color:p.col,target:FR[s]*(p.aux?.6:1),dur:2.4,fb:false,fl:true,r:p.aux?2.1:2.7})});
   ids.forEach((id,i)=>{
     const p=P[id], s=st(id), left=p[2]==='l', x=p[0]+40;
     lab+=`<line class="lead" x1="${x}" y1="${p[1]}" x2="${left?100:280}" y2="${p[1]}"/>`;
@@ -602,12 +744,12 @@ function bodySVG(a,sc,quiz){
     lab+=`<text class="lbl" x="${left?4:376}" y="${p[1]+4}" text-anchor="${left?'start':'end'}">${p[4]} <tspan class="g${s}">${G[s]}</tspan></text>`;
   });
   let ring='',hit='';
-  if(!quiz&&sc&&sc.at!=='ext'){const p=P[sc.at];ring=`<circle class="lring" cx="${p[0]}" cy="${p[1]}" r="16"/>`}
+  if(!quiz&&sc&&sc.at!=='ext'){let p=P[sc.at];const cp=FX&&sc.cause&&FLOW[a.id].pipes.find(q=>q.id===sc.cause);if(cp)p=cp.d.match(/^M(\d+) (\d+)/).slice(1).map(Number);ring=`<circle class="lring" cx="${p[0]}" cy="${p[1]}" r="16"/>`}
   if(!quiz)ids.forEach(id=>{if(a.scen.some(s=>s.at===id)){const p=P[id];hit+=`<circle class="hit" data-hit="${id}" cx="${p[0]}" cy="${p[1]}" r="17" tabindex="0" role="button" aria-label="${a.nodes.find(n=>n.id===id).organ}に病変を入れる"/>`}});
-  return `<svg class="body" viewBox="0 0 380 424" role="img" aria-label="${a.name}の軸を人体図に重ねた図">
+  return `<svg class="body" viewBox="0 0 380 440" role="img" aria-label="${a.name}の軸を人体図に重ねた図">
   <defs><marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1L9 5L0 9z" style="fill:var(--muted)"/></marker>
   <marker id="bar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M5 0V10" style="stroke:var(--muted);stroke-width:2.6"/></marker></defs>
-  <g transform="translate(40 0)">${organs(oc)}${trk}${extra}<g class="pl"></g>${ring}${hit}</g>${lab}</svg>`;
+  <g transform="translate(40 0)">${organs(oc,bvc)}${FX?flowOrgans(a,sc):''}<g class="L2">${trk}</g>${FX?`<g class="L3">${FX.paths}${FX.valves}</g>`:''}<g class="L1">${extra}${ring}</g><g class="pl L2"></g><g class="pl2 L3"></g>${hit}</g><g class="L2">${lab}</g>${FX?`<g class="L3">${FX.lab}</g>`:''}</svg>`;
 }
 function gauges(a,sc,quiz){
   const P=POS[a.id];
@@ -634,9 +776,9 @@ function placeP(p){
 }
 function spawn(e,t){
   const c=document.createElementNS(NS,'circle');
-  c.setAttribute('r',e.fb?3.2:4.1);
+  c.setAttribute('r',e.r||(e.fb?3.2:4.1));
   if(e.fb){c.style.fill='var(--surface)';c.style.stroke=e.color;c.style.strokeWidth='1.7'}else c.style.fill=e.color;
-  ENG.layer.appendChild(c);const p={e,t,c};placeP(p);ENG.parts.push(p);
+  (e.fl&&ENG.layer2?ENG.layer2:ENG.layer).appendChild(c);const p={e,t,c};placeP(p);ENG.parts.push(p);
 }
 function tick(ts){
   if(!ENG.layer||!ENG.layer.isConnected){ENG.raf=0;return}
@@ -652,7 +794,7 @@ function mountBody(){
   $v.querySelectorAll('[data-mk]').forEach(m=>{const to=+m.dataset.to;ENG.marks[m.dataset.mk]=to;requestAnimationFrame(()=>requestAnimationFrame(()=>{m.style.left=to+'%'}))});
   const svg=$v.querySelector('svg.body');ENG.parts=[];ENG.edges=[];
   if(!svg){if(ENG.raf)cancelAnimationFrame(ENG.raf);ENG.raf=0;ENG.layer=null;return}
-  ENG.layer=svg.querySelector('.pl');
+  ENG.layer=svg.querySelector('.pl');ENG.layer2=svg.querySelector('.pl2');
   ENG.edges=PEND.map(e=>{const p=svg.querySelector(`[data-edge="${e.id}"]`),L=p.getTotalLength(),pts=[];
     for(let i=0;i<=64;i++){const q=p.getPointAtLength(L*i/64);pts.push([q.x,q.y])}
     return {...e,pts,acc:Math.random(),rate:ENG.rates[e.key]??e.target}});
@@ -682,13 +824,18 @@ function resultHTML(sc){
 function axisView(){
   const a=ax(), sc=a.scen.find(s=>s.id===S.scen)||null, ext=a.scen.filter(s=>s.at==='ext');
   const chips=`<div class="chips">`+AX.map(x=>`<button class="chip" data-axis="${x.id}" aria-pressed="${x.id===S.axis}">${x.name}</button>`).join('')+`</div>`;
-  const left=`<div><p class="loop">${a.loop}</p><div class="figwrap">${bodySVG(a,sc,false)}</div>
-  <p class="hint">粒の多さ＝分泌量。塗りつぶしの粒は下流への指令、白抜きの粒は点線を戻るフィードバック。臓器かメーターをタップすると病変を入れられます。</p>
+  const hasF=!!FLOW[a.id], st=hasF&&sc?S.st:0;
+  const cap=[null,sc&&`<b>① 原因</b>　${sc.at==='ext'?'':a.nodes.find(n=>n.id===sc.at).organ+'：'}${sc.btn}`,sc&&`<b>② 主軸</b>　${sc.read}`,sc&&sc.sd&&`<b>③ 脇道</b>　${sc.sd}`,'<b>④ 検査値</b>　右のピルが、この変化の結果として測れる値です。'][st];
+  const stbar=hasF&&sc?`<div class="stbar"><button class="stbtn" data-stp="1">${st===0?'▶ 順に見る':st<4?'次へ ▶':'全体に戻る'}</button><span class="stdots" aria-hidden="true">${[1,2,3,4].map(i=>`<i class="${st>=i?'on':''}"></i>`).join('')}</span>${cap?`<div class="stcap" aria-live="polite">${cap}</div>`:''}</div>`:'';
+  const outs=sc&&sc.out?`<div class="outs">つながる先：${sc.out.map(o=>`<button class="jump" data-goax="${o.axis}" data-goscen="${o.scen}">${o.label}</button>`).join('')}</div>`:'';
+  const left=`<div><p class="loop">${a.loop}</p>${stbar}<div class="figwrap">${bodySVG(a,sc,false)}</div>
+  <p class="hint">粒の多さ＝分泌量。塗りつぶしの粒は下流への指令、白抜きの粒は点線を戻るフィードバック。臓器かメーターをタップすると病変を入れられます。${hasF?'<br>太い帯＝物質の量（細い＝減る、太い＝増える）。丸は弁で、ホルモンの指令を受けて開閉します。「固着」は指令と無関係に動かない状態です。':''}</p>
+  ${sc&&sc.sd&&st!==3?`<div class="side"><span class="k">脇道の読み方</span>${sc.sd}</div>`:''}${outs}
   ${gauges(a,sc,false)}
   ${ext.length?`<div class="ext"><h3>外因・異所性・他軸から</h3><div class="chips">${ext.map(s=>`<button class="chip" data-scen="${s.id}" aria-pressed="${S.scen===s.id}">${s.btn}</button>`).join('')}</div></div>`:''}
   <button class="reset" data-reset="1">正常に戻す</button>
   <div class="rule"><b>読み方の原則</b>　指令ホルモンと末梢ホルモンが<b>逆向き</b>なら末梢側が原因（原発性）。<b>同じ向き</b>なら指令側から上流が原因（続発性）。両方とも抑制されているのに作用だけ強いなら、外因か受容体より下流の異常。</div></div>`;
-  return chips+`<div class="grid">${left}${resultHTML(sc)}</div>`;
+  return chips+`<div class="grid" data-st="${st}">${left}${resultHTML(sc)}</div>`;
 }
 function nephSVG(){
   const on=id=>S.seg===id||(id==='cd'&&(S.seg==='cdp'||S.seg==='cda'));
@@ -756,15 +903,16 @@ function render(){
 document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;S.tab=b.dataset.tab;S.fresh=true;render();window.scrollTo(0,0)});
 $v.addEventListener('click',e=>{
   const t=e.target.closest('button');if(!t)return;const d=t.dataset;
-  if(d.axis){S.axis=d.axis;S.scen=null;S.open=null;S.fresh=true}
+  if(d.stp){S.st=(S.st+1)%5}
+  else if(d.axis){S.axis=d.axis;S.scen=null;S.open=null;S.fresh=true;S.st=0}
   else if(d.node){S.open=S.open===d.node?null:d.node}
-  else if(d.scen){S.scen=d.scen;S.fresh=true}
-  else if(d.reset){S.scen=null;S.open=null}
+  else if(d.scen){S.scen=d.scen;S.fresh=true;S.st=0}
+  else if(d.reset){S.scen=null;S.open=null;S.st=0}
   else if(d.seg){S.seg=d.seg;S.tscen=SEG.find(s=>s.id===d.seg).scen[0].id}
   else if(d.tscen){S.tscen=d.tscen}
   else if(d.cmp){S.cmp=!S.cmp}
   else if(d.goseg){S.tab='tub';S.seg=d.goseg;S.tscen=SEG.find(s=>s.id===d.goseg).scen[0].id;window.scrollTo(0,0)}
-  else if(d.goax){S.tab='axis';S.axis=d.goax;S.scen=d.goscen;const sc=ax().scen.find(s=>s.id===d.goscen);S.open=sc&&sc.at!=='ext'?sc.at:null;S.fresh=true;window.scrollTo(0,0)}
+  else if(d.goax){S.tab='axis';S.axis=d.goax;S.scen=d.goscen;S.st=0;const sc=ax().scen.find(s=>s.id===d.goscen);S.open=sc&&sc.at!=='ext'?sc.at:null;S.fresh=true;window.scrollTo(0,0)}
   else if(d.ans){S.q.ans=d.ans;S.score[1]++;if(d.ans===S.q.c.id)S.score[0]++}
   else if(d.next){newQ()}
   else return;
